@@ -31,7 +31,7 @@ Workflow: `.github/workflows/daily-product-owner.yml`
 What it does:
 - Runs every day.
 - Uses OpenAI API to generate one fresh tool idea.
-- Creates a GitHub issue labeled for handoff to engineering.
+- Creates a GitHub issue titled with the tool name and launch date.
 - Enforces guardrails:
   - Max one daily issue per date tag
   - Duplicate tool-name detection with one regeneration attempt
@@ -41,7 +41,8 @@ Required repo settings:
 1. Add secret: `OPENAI_API_KEY`
 2. Add optional variable or secret: `OPENAI_MODEL`
 3. Add optional variable or secret: `OPENAI_DAILY_CALL_LIMIT` (default: `1`)
-4. If `OPENAI_MODEL` is not set, workflow defaults to `gpt-4o-mini` (low-cost baseline model)
+4. Add optional variable or secret: `TOOL_LAUNCH_OFFSET_DAYS` (default: `1`)
+5. If `OPENAI_MODEL` is not set, workflow defaults to `gpt-4o-mini` (low-cost baseline model)
 
 ## Software Engineer Automation
 

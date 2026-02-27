@@ -100,6 +100,8 @@ function normalizeTitle(title, summary) {
     normalized = normalized.replace(/^\[[^\]]+\]\s*/, "").trim();
   }
 
+  normalized = normalized.replace(/\(launch\s+\d{4}-\d{2}-\d{2}\)$/i, "").trim();
+
   if (/daily tool idea \d{4}-\d{2}-\d{2}/i.test(normalized) && /base64/i.test(summary || "")) {
     return "Base64 / URL-safe Converter";
   }
@@ -131,6 +133,17 @@ function formatDate(value) {
 }
 
 function upcomingDateFromIssue(issue) {
+  const launchMatch = String(issue.body || "").match(/## Launch Date\s*([\s\S]*?)(\n## |\n---|$)/i);
+  if (launchMatch && launchMatch[1]) {
+    const line = launchMatch[1]
+      .split("\n")
+      .map((item) => item.trim())
+      .find(Boolean);
+    if (line) {
+      return line;
+    }
+  }
+
   const match = String(issue.title || "").match(/\b(\d{4}-\d{2}-\d{2})\b/);
   if (match && match[1]) {
     return match[1];
