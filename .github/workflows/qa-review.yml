@@ -85,7 +85,7 @@ jobs:
             if (!issueNumber) {
               const pr = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
               const body = pr.data.body || "";
-              const match = body.match(/#(\\d+)/);
+              const match = body.match(/#(\d+)/);
               if (match) {
                 issueNumber = Number(match[1]);
               }
@@ -99,7 +99,7 @@ jobs:
                 issue_number: issueNumber
               });
               const body = issue.data.body || "";
-              const section = body.match(/## Acceptance Criteria[\\s\\S]*?(\\n## |\\n---|$)/i);
+              const section = body.match(/## Acceptance Criteria[\s\S]*?(?:\n## |\n---|$)/i);
               if (section?.[0]) {
                 acceptanceCriteria = section[0]
                   .split("\n")
@@ -108,12 +108,90 @@ jobs:
               }
             }
 
-            const pass = testOutcome === "success";
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: prNumber,
+              per_page: 100
+            });
+
+            const changedFiles = new Set(files.map((file) => file.filename.toLowerCase()));
+            const testPatchText = files
+              .filter((file) => /(^|\/)test\//.test(file.filename) || /\.test\.(mjs|js|ts|tsx)$/.test(file.filename))
+              .map((file) => `${file.filename}\n${file.patch || ""}`)
+              .join("\n")
+              .toLowerCase();
+
+            const evaluateCriterion = (criterionText) => {
+              const criterion = criterionText.toLowerCase();
+
+              if (criterion.includes("core logic") && criterion.includes("test")) {
+                const hasTestsInPr = Array.from(changedFiles).some(
+                  (name) => name.startsWith("test/") || name.includes("/test/")
+                );
+                if (testOutcome === "success" && hasTestsInPr) {
+                  return { status: "pass", detail: "Automated tests passed and test files changed." };
+                }
+                return { status: "fail", detail: "Core-logic test signal is insufficient." };
+              }
+
+              if (criterion.includes("readme")) {
+                if (changedFiles.has("readme.md")) {
+                  return { status: "pass", detail: "README.md changed in this PR." };
+                }
+                return { status: "fail", detail: "README.md was not updated." };
+              }
+
+              if (criterion.includes("input validation")) {
+                if (/(assert\.throws|throws\(|invalid|error)/.test(testPatchText)) {
+                  return { status: "pass", detail: "Validation/error assertions were found in tests." };
+                }
+                return {
+                  status: "fail",
+                  detail: "Input-validation assertions were not detected in PR tests."
+                };
+              }
+
+              if (
+                criterion.includes("mobile") ||
+                criterion.includes("desktop") ||
+                criterion.includes("responsive")
+              ) {
+                return {
+                  status: "unmatched",
+                  detail: "Requires manual UI verification; no automatic matcher configured."
+                };
+              }
+
+              return {
+                status: "unmatched",
+                detail: "No automatic acceptance matcher configured for this criterion."
+              };
+            };
+
+            const criterionResults = acceptanceCriteria.map((line) => {
+              const text = line.slice(2).trim();
+              return {
+                criterion: text,
+                ...evaluateCriterion(text)
+              };
+            });
+
+            const hasCriteria = acceptanceCriteria.length > 0;
+            const hasFail = criterionResults.some((item) => item.status === "fail");
+            const hasUnmatched = criterionResults.some((item) => item.status === "unmatched");
+
+            const pass = testOutcome === "success" && hasCriteria && !hasFail && !hasUnmatched;
             const qaDecision = pass ? "PASS" : "FAIL";
-            const acceptanceSummary =
-              acceptanceCriteria.length > 0
-                ? acceptanceCriteria.map((line) => `- ${pass ? "Pass" : "Needs manual check"}: ${line.slice(2)}`).join("\n")
-                : "- Acceptance criteria were not parsed automatically.";
+
+            const acceptanceSummary = hasCriteria
+              ? criterionResults
+                  .map(
+                    (item) =>
+                      `- ${item.status.toUpperCase()}: ${item.criterion} (${item.detail})`
+                  )
+                  .join("\n")
+              : "- FAIL: Acceptance criteria were not parsed from the linked issue.";
 
             await github.rest.issues.createComment({
               owner,
@@ -129,7 +207,7 @@ jobs:
                 "",
                 pass
                   ? "QA automation marked this change as ready to merge."
-                  : "QA automation found failing checks. Please update the PR and rerun QA."
+                  : "QA automation blocked merge because criteria parsing/matching or tests failed."
               ].join("\n")
             });
 
@@ -173,5 +251,7 @@ jobs:
                 issue_number: prNumber,
                 labels: ["status:qa-review", "role:qa"]
               });
-              core.setFailed("QA automation failed due to failing test checks.");
+              core.setFailed(
+                "QA automation failed because tests failed or acceptance criteria were not fully parsed/matched."
+              );
             }

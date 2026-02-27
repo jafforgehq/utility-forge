@@ -102,21 +102,21 @@ jobs:
             }
 
             const extractToolName = (body, fallbackTitle) => {
-              const match = String(body || "").match(/## Tool\\s*([\\s\\S]*?)(\\n## |\\n---|$)/i);
+              const match = String(body || "").match(/## Tool\s*([\s\S]*?)(\n## |\n---|$)/i);
               if (!match || !match[1]) return fallbackTitle;
               const line = match[1]
-                .split("\\n")
+                .split("\n")
                 .map((row) => row.trim())
                 .find(Boolean);
               return line || fallbackTitle;
             };
 
-            const toolName = extractToolName(issue.body, issue.title.replace(/^\\[[^\\]]+\\]\\s*/, ""));
+            const toolName = extractToolName(issue.body, issue.title.replace(/^\[[^\]]+\]\s*/, ""));
             const baseSlug = toolName
               .toLowerCase()
-              .replace(/[^a-z0-9\\s-]/g, "")
+              .replace(/[^a-z0-9\s-]/g, "")
               .trim()
-              .replace(/\\s+/g, "-")
+              .replace(/\s+/g, "-")
               .replace(/-+/g, "-")
               .slice(0, 40) || `tool-${issueNumber}`;
             const slug = `${baseSlug}-${issueNumber}`;
