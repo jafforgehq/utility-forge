@@ -1,4 +1,4 @@
-export const TOOL_NAME = `[Product Owner] Daily Tool Idea 2026-02-27`;
+export const TOOL_NAME = `Base64 / URL-safe Converter`;
 export const TOOL_SUMMARY = `Convert UTF-8 text between Base64 and URL-safe Base64 formats.`;
 export const SAMPLE_INPUT = `Hello Utility Forge`;
 export const MODES = [

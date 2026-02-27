@@ -10,7 +10,7 @@ const minifyBtn = document.querySelector("#minifyBtn");
 const sortBtn = document.querySelector("#sortBtn");
 const copyBtn = document.querySelector("#copyBtn");
 const swapBtn = document.querySelector("#swapBtn");
-const generatedToolsEl = document.querySelector("#generatedTools");
+const toolTilesEl = document.querySelector("#toolTiles");
 
 const sample = `{
   "tool": "utility-forge",
@@ -80,44 +80,204 @@ swapBtn.addEventListener("click", () => {
 setStatus("Ready.", "ok");
 setStats(inputEl.value, outputEl.value);
 
-async function loadGeneratedTools() {
-  if (!generatedToolsEl) {
+function extractToolNameFromIssue(body, fallback = "Upcoming Tool") {
+  const match = String(body || "").match(/## Tool\s*([\s\S]*?)(\n## |\n---|$)/i);
+  if (!match || !match[1]) {
+    return fallback;
+  }
+
+  const name = match[1]
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  return name || fallback;
+}
+
+function normalizeTitle(title, summary) {
+  let normalized = String(title || "").trim();
+  while (/^\[[^\]]+\]\s*/.test(normalized)) {
+    normalized = normalized.replace(/^\[[^\]]+\]\s*/, "").trim();
+  }
+
+  if (/daily tool idea \d{4}-\d{2}-\d{2}/i.test(normalized) && /base64/i.test(summary || "")) {
+    return "Base64 / URL-safe Converter";
+  }
+
+  return normalized || "Developer Tool";
+}
+
+function inferRepoFromLocation() {
+  const host = window.location.hostname;
+  const segments = window.location.pathname.split("/").filter(Boolean);
+
+  if (host.endsWith(".github.io") && segments.length > 0) {
+    return { owner: host.split(".")[0], repo: segments[0] };
+  }
+
+  return { owner: "jafforgehq", repo: "utility-forge" };
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "TBD";
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric"
+  }).format(date);
+}
+
+function upcomingDateFromIssue(issue) {
+  const match = String(issue.title || "").match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  return issue.created_at || "";
+}
+
+function buildTile(tool) {
+  const tile = document.createElement("article");
+  tile.className = `tool-tile ${tool.kind}`;
+
+  const heading = document.createElement("h3");
+  if (tool.url) {
+    const link = document.createElement("a");
+    link.href = tool.url;
+    link.textContent = tool.title;
+    link.rel = "noopener noreferrer";
+    heading.appendChild(link);
+  } else {
+    heading.textContent = tool.title;
+  }
+  tile.appendChild(heading);
+
+  if (tool.summary) {
+    const summary = document.createElement("p");
+    summary.textContent = tool.summary;
+    tile.appendChild(summary);
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "tool-tile-meta";
+
+  const status = document.createElement("span");
+  status.className = `tile-status ${tool.kind}`;
+  status.textContent = tool.status;
+  meta.appendChild(status);
+
+  if (tool.date) {
+    const date = document.createElement("span");
+    date.className = "tile-date";
+    date.textContent = tool.date;
+    meta.appendChild(date);
+  }
+
+  tile.appendChild(meta);
+  return tile;
+}
+
+async function loadToolCatalog() {
+  if (!toolTilesEl) {
     return;
   }
 
   try {
-    const response = await fetch("./generated-tools.json", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Generated tools fetch failed (${response.status}).`);
+    const repo = inferRepoFromLocation();
+    const [generatedResp, upcomingResp] = await Promise.all([
+      fetch("./generated-tools.json", { cache: "no-store" }),
+      fetch(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/issues?state=open&labels=type:tool&per_page=100`,
+        {
+          headers: { Accept: "application/vnd.github+json" }
+        }
+      )
+    ]);
+
+    if (!generatedResp.ok) {
+      throw new Error(`Generated tools fetch failed (${generatedResp.status}).`);
     }
 
-    const tools = await response.json();
-    if (!Array.isArray(tools) || tools.length === 0) {
-      generatedToolsEl.innerHTML = '<li class="generated-empty">No generated tools yet.</li>';
+    const generated = await generatedResp.json();
+    const issues = upcomingResp.ok ? await upcomingResp.json() : [];
+
+    const liveTools = [
+      {
+        title: "JSON Formatter / Minifier / Key Sorter",
+        summary: "Format, minify, sort keys, and copy JSON instantly in browser.",
+        url: "#tool-title",
+        status: "Live",
+        kind: "live",
+        date: ""
+      },
+      ...(Array.isArray(generated)
+        ? generated.map((tool) => ({
+            title: normalizeTitle(tool.title, tool.summary),
+            summary: tool.summary || "",
+            url: tool.path || "",
+            status: "Live",
+            kind: "live",
+            date: ""
+          }))
+        : [])
+    ];
+
+    const upcomingTools = Array.isArray(issues)
+      ? issues
+          .filter((item) => !item.pull_request)
+          .filter((item) => {
+            const labels = item.labels.map((label) => label.name);
+            return !labels.includes("status:done");
+          })
+          .map((item) => {
+            const labels = item.labels.map((label) => label.name);
+            let state = "Upcoming";
+            if (labels.includes("status:in-progress")) {
+              state = "In Progress";
+            } else if (labels.includes("status:qa-review")) {
+              state = "QA Review";
+            } else if (labels.includes("status:ready-for-engineering")) {
+              state = "Ready";
+            }
+
+            const extracted = extractToolNameFromIssue(item.body, item.title);
+            return {
+              title: normalizeTitle(extracted, ""),
+              summary: "Scheduled by Product Owner automation.",
+              url: item.html_url,
+              status: state,
+              kind: "upcoming",
+              date: `Target ${formatDate(upcomingDateFromIssue(item))}`
+            };
+          })
+      : [];
+
+    const seen = new Set();
+    const allTools = [...liveTools, ...upcomingTools].filter((tool) => {
+      const key = `${tool.kind}:${tool.title.toLowerCase()}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+
+    toolTilesEl.innerHTML = "";
+
+    if (allTools.length === 0) {
+      toolTilesEl.innerHTML = '<article class="tool-tile tool-tile-empty">No tools found.</article>';
       return;
     }
 
-    generatedToolsEl.innerHTML = "";
-
-    for (const tool of tools) {
-      const item = document.createElement("li");
-      const link = document.createElement("a");
-      link.href = tool.path;
-      link.textContent = tool.title || tool.slug || "Generated tool";
-      link.rel = "noopener noreferrer";
-      item.appendChild(link);
-
-      if (tool.summary) {
-        const summary = document.createElement("span");
-        summary.textContent = ` - ${tool.summary}`;
-        item.appendChild(summary);
-      }
-
-      generatedToolsEl.appendChild(item);
+    for (const tool of allTools) {
+      toolTilesEl.appendChild(buildTile(tool));
     }
   } catch {
-    generatedToolsEl.innerHTML = '<li class="generated-empty">Could not load generated tools.</li>';
+    toolTilesEl.innerHTML =
+      '<article class="tool-tile tool-tile-empty">Could not load tool catalog.</article>';
   }
 }
 
-loadGeneratedTools();
+loadToolCatalog();

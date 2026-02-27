@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Utility Forge - JSON Tool</title>
+    <title>Utility Forge - Developer Tools</title>
     <meta
       name="description"
-      content="Utility Forge ships developer tools daily. Start with JSON format, minify, and key sorting."
+      content="Utility Forge ships developer tools daily with Product Owner, Software Engineer, and QA automation."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,7 +32,7 @@
 
       <section class="tool-panel reveal" aria-labelledby="tool-title">
         <div class="tool-head">
-          <h2 id="tool-title">Tool #1: JSON Formatter</h2>
+          <h2 id="tool-title">JSON Formatter / Minifier / Key Sorter</h2>
           <span class="pill">v1 live</span>
         </div>
 
@@ -72,14 +72,14 @@
         </ol>
       </section>
 
-      <section class="ops reveal" aria-labelledby="generated-tools-title">
-        <h2 id="generated-tools-title">Generated Tools</h2>
+      <section class="ops reveal catalog" aria-labelledby="catalog-title">
+        <h2 id="catalog-title">Tool Catalog</h2>
         <p class="generated-subhead">
-          New tools created by the Software Engineer workflow appear here after merge.
+          Live tools and upcoming ideas are listed here. Upcoming tiles show their target date.
         </p>
-        <ul id="generatedTools" class="generated-tools-list">
-          <li class="generated-empty">No generated tools yet.</li>
-        </ul>
+        <div id="toolTiles" class="tool-tiles">
+          <article class="tool-tile tool-tile-empty">Loading tools...</article>
+        </div>
       </section>
     </main>
 

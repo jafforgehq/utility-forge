@@ -1,8 +1,9 @@
 [
   {
     "slug": "productownerdailytoolidea2026-02-27-1",
-    "title": "[Product Owner] Daily Tool Idea 2026-02-27",
+    "title": "Base64 / URL-safe Converter",
     "summary": "Convert UTF-8 text between Base64 and URL-safe Base64 formats.",
-    "path": "./tools/productownerdailytoolidea2026-02-27-1/"
+    "path": "./tools/productownerdailytoolidea2026-02-27-1/",
+    "source_issue": 1
   }
 ]

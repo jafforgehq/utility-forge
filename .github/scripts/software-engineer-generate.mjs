@@ -511,7 +511,7 @@ function updateReadme(name, slug, summary) {
   fs.writeFileSync(readmePath, `${readme.trimEnd()}\n`);
 }
 
-function updateRegistry(slug, name, summary) {
+function updateRegistry(slug, name, summary, sourceIssue) {
   let registry = [];
   if (fs.existsSync(registryPath)) {
     const raw = fs.readFileSync(registryPath, "utf8").trim();
@@ -524,14 +524,22 @@ function updateRegistry(slug, name, summary) {
     registry = [];
   }
 
-  const exists = registry.some((entry) => entry.slug === slug);
-  if (!exists) {
-    registry.push({
-      slug,
-      title: name,
-      summary,
-      path: `./tools/${slug}/`
-    });
+  const entry = {
+    slug,
+    title: name,
+    summary,
+    path: `./tools/${slug}/`,
+    source_issue: Number(sourceIssue)
+  };
+
+  const index = registry.findIndex((item) => item.slug === slug);
+  if (index === -1) {
+    registry.push(entry);
+  } else {
+    registry[index] = {
+      ...registry[index],
+      ...entry
+    };
   }
 
   fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n");
@@ -555,7 +563,7 @@ const generatedSpec = await generateSpecWithOpenAI(toolName, issueBody);
 const spec = generatedSpec || fallbackSpec(toolName);
 
 writeFiles(spec);
-updateRegistry(toolSlug, toolName, spec.summary);
+updateRegistry(toolSlug, toolName, spec.summary, issueNumber);
 updateReadme(toolName, toolSlug, spec.summary);
 
 console.log(`Generated tool: ${toolSlug}`);
