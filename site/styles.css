@@ -210,6 +210,22 @@ button.ghost {
   color: var(--muted);
 }
 
+.catalog-stats {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.84rem;
+}
+
+.catalog-group + .catalog-group {
+  margin-top: 1.2rem;
+}
+
+.catalog-group-title {
+  margin: 0 0 0.7rem;
+  font-size: 1rem;
+}
+
 .tool-tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -283,6 +299,13 @@ button.ghost {
 
 .tile-date {
   color: var(--muted);
+}
+
+.tile-countdown {
+  margin-top: 0.55rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  color: #ffc0a8;
 }
 
 .tool-tile-empty {

@@ -10,7 +10,19 @@ const minifyBtn = document.querySelector("#minifyBtn");
 const sortBtn = document.querySelector("#sortBtn");
 const copyBtn = document.querySelector("#copyBtn");
 const swapBtn = document.querySelector("#swapBtn");
-const toolTilesEl = document.querySelector("#toolTiles");
+const liveToolTilesEl = document.querySelector("#liveToolTiles");
+const plannedToolTilesEl = document.querySelector("#plannedToolTiles");
+const catalogStatsEl = document.querySelector("#catalogStats");
+
+const MIN_UPCOMING_TILES = 3;
+const FALLBACK_PLANNED_TOOLS = [
+  "HTTP Header Diff Checker",
+  "JWT Expiry Inspector",
+  "Cron Expression Translator",
+  "URL Query Param Diff",
+  "Regex Explain Assistant",
+  "OpenAPI Endpoint Snippet Builder"
+];
 
 const sample = `{
   "tool": "utility-forge",
@@ -132,6 +144,23 @@ function formatDate(value) {
   }).format(date);
 }
 
+function formatCountdown(value) {
+  const target = new Date(`${value}T09:00:00Z`);
+  if (Number.isNaN(target.getTime())) {
+    return "TBD";
+  }
+
+  const diffMs = target.getTime() - Date.now();
+  if (diffMs <= 0) {
+    return "Launching now";
+  }
+
+  const hours = Math.floor(diffMs / 3600000);
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return `T-${days}d ${remHours}h`;
+}
+
 function upcomingDateFromIssue(issue) {
   const launchMatch = String(issue.body || "").match(/## Launch Date\s*([\s\S]*?)(\n## |\n---|$)/i);
   if (launchMatch && launchMatch[1]) {
@@ -149,6 +178,23 @@ function upcomingDateFromIssue(issue) {
     return match[1];
   }
   return issue.created_at || "";
+}
+
+function toIsoDate(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return parsed.toISOString().slice(0, 10);
+}
+
+function addDaysIso(baseDateIso, daysToAdd) {
+  const base = new Date(`${baseDateIso}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) {
+    return "";
+  }
+  base.setUTCDate(base.getUTCDate() + daysToAdd);
+  return base.toISOString().slice(0, 10);
 }
 
 function buildTile(tool) {
@@ -173,6 +219,13 @@ function buildTile(tool) {
     tile.appendChild(summary);
   }
 
+  if (tool.countdown) {
+    const countdown = document.createElement("p");
+    countdown.className = "tile-countdown";
+    countdown.textContent = tool.countdown;
+    tile.appendChild(countdown);
+  }
+
   const meta = document.createElement("div");
   meta.className = "tool-tile-meta";
 
@@ -192,8 +245,24 @@ function buildTile(tool) {
   return tile;
 }
 
+function renderTileList(targetEl, tools, emptyMessage) {
+  if (!targetEl) {
+    return;
+  }
+
+  targetEl.innerHTML = "";
+  if (!tools.length) {
+    targetEl.innerHTML = `<article class="tool-tile tool-tile-empty">${emptyMessage}</article>`;
+    return;
+  }
+
+  for (const tool of tools) {
+    targetEl.appendChild(buildTile(tool));
+  }
+}
+
 async function loadToolCatalog() {
-  if (!toolTilesEl) {
+  if (!liveToolTilesEl || !plannedToolTilesEl || !catalogStatsEl) {
     return;
   }
 
@@ -215,6 +284,7 @@ async function loadToolCatalog() {
 
     const generated = await generatedResp.json();
     const issues = upcomingResp.ok ? await upcomingResp.json() : [];
+    const todayIso = new Date().toISOString().slice(0, 10);
 
     const liveTools = [
       {
@@ -232,12 +302,13 @@ async function loadToolCatalog() {
             url: tool.path || "",
             status: "Live",
             kind: "live",
-            date: ""
+            date: "",
+            countdown: ""
           }))
         : [])
     ];
 
-    const upcomingTools = Array.isArray(issues)
+    const upcomingToolsFromIssues = Array.isArray(issues)
       ? issues
           .filter((item) => !item.pull_request)
           .filter((item) => {
@@ -256,40 +327,59 @@ async function loadToolCatalog() {
             }
 
             const extracted = extractToolNameFromIssue(item.body, item.title);
+            const launchIso = toIsoDate(upcomingDateFromIssue(item));
             return {
               title: normalizeTitle(extracted, ""),
               summary: "Scheduled by Product Owner automation.",
               url: item.html_url,
               status: state,
               kind: "upcoming",
-              date: `Target ${formatDate(upcomingDateFromIssue(item))}`
+              date: launchIso ? `Launch ${formatDate(launchIso)}` : "Launch TBD",
+              countdown: launchIso ? formatCountdown(launchIso) : "TBD",
+              launchIso
             };
           })
       : [];
 
-    const seen = new Set();
-    const allTools = [...liveTools, ...upcomingTools].filter((tool) => {
-      const key = `${tool.kind}:${tool.title.toLowerCase()}`;
-      if (seen.has(key)) {
-        return false;
+    const liveNameSet = new Set(liveTools.map((tool) => tool.title.toLowerCase()));
+    const upcomingTools = [...upcomingToolsFromIssues];
+
+    let fallbackIndex = 0;
+    while (upcomingTools.length < MIN_UPCOMING_TILES && fallbackIndex < 20) {
+      const candidateName = FALLBACK_PLANNED_TOOLS[fallbackIndex % FALLBACK_PLANNED_TOOLS.length];
+      const lower = candidateName.toLowerCase();
+      fallbackIndex += 1;
+
+      if (liveNameSet.has(lower) || upcomingTools.some((tool) => tool.title.toLowerCase() === lower)) {
+        continue;
       }
-      seen.add(key);
-      return true;
+
+      const launchIso = addDaysIso(todayIso, upcomingTools.length + 1);
+      upcomingTools.push({
+        title: candidateName,
+        summary: "Planned by the daily roadmap.",
+        url: "",
+        status: "Planned",
+        kind: "upcoming",
+        date: `Launch ${formatDate(launchIso)}`,
+        countdown: formatCountdown(launchIso),
+        launchIso
+      });
+    }
+
+    upcomingTools.sort((a, b) => {
+      if (!a.launchIso) return 1;
+      if (!b.launchIso) return -1;
+      return a.launchIso.localeCompare(b.launchIso);
     });
 
-    toolTilesEl.innerHTML = "";
-
-    if (allTools.length === 0) {
-      toolTilesEl.innerHTML = '<article class="tool-tile tool-tile-empty">No tools found.</article>';
-      return;
-    }
-
-    for (const tool of allTools) {
-      toolTilesEl.appendChild(buildTile(tool));
-    }
+    catalogStatsEl.textContent = `${liveTools.length} live tools | ${upcomingTools.length} planned tools`;
+    renderTileList(liveToolTilesEl, liveTools, "No live tools found.");
+    renderTileList(plannedToolTilesEl, upcomingTools, "No planned tools found.");
   } catch {
-    toolTilesEl.innerHTML =
-      '<article class="tool-tile tool-tile-empty">Could not load tool catalog.</article>';
+    catalogStatsEl.textContent = "Could not load catalog stats.";
+    renderTileList(liveToolTilesEl, [], "Could not load live tools.");
+    renderTileList(plannedToolTilesEl, [], "Could not load planned tools.");
   }
 }
 
