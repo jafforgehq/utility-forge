@@ -13,6 +13,7 @@ The long-term model is a daily tool release managed by 3 roles:
 ## Live Site
 
 This repo is configured for automatic deployment to GitHub Pages from `main` using `.github/workflows/pages.yml`.
+- Public URL: `https://jafforgehq.github.io/utility-forge/`
 
 ## Local Development
 
