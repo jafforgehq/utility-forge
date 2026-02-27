@@ -20,7 +20,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ vars.OPENAI_MODEL != '' && vars.OPENAI_MODEL || 'gpt-4o-mini' }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL || 'gpt-4o-mini' }}
         with:
           script: |
             const fs = require("fs");
@@ -161,4 +161,3 @@ jobs:
               body,
               labels: ["role:product-owner", "status:ready-for-engineering", "type:tool"]
             });
-
