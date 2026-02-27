@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>[Product Owner] Daily Tool Idea 2026-02-27 - Utility Forge</title>
+    <meta name="description" content="Convert UTF-8 text between Base64 and URL-safe Base64 formats." />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="tool-shell">
+      <a class="back-link" href="../../index.html">Back to Utility Forge</a>
+      <h1>[Product Owner] Daily Tool Idea 2026-02-27</h1>
+      <p id="summary">Convert UTF-8 text between Base64 and URL-safe Base64 formats.</p>
+
+      <label for="modeSelect">Mode</label>
+      <select id="modeSelect"></select>
+
+      <label for="toolInput">Input</label>
+      <textarea id="toolInput" spellcheck="false"></textarea>
+
+      <label for="toolOutput">Output</label>
+      <textarea id="toolOutput" spellcheck="false" readonly></textarea>
+
+      <div class="actions">
+        <button id="runBtn" type="button">Run</button>
+        <button id="copyBtn" type="button" class="ghost">Copy Output</button>
+      </div>
+
+      <p id="status" aria-live="polite">Ready.</p>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
