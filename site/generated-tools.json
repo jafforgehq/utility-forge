@@ -5,5 +5,12 @@
     "summary": "Convert UTF-8 text between Base64 and URL-safe Base64 formats.",
     "path": "./tools/productownerdailytoolidea2026-02-27-1/",
     "source_issue": 1
+  },
+  {
+    "slug": "convert-curl-command-fetch-snippet-gener-3",
+    "title": "Convert curl command -> fetch snippet generator",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/convert-curl-command-fetch-snippet-gener-3/",
+    "source_issue": 3
   }
 ]
