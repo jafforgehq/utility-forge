@@ -16,6 +16,7 @@ const root = process.cwd();
 const toolDir = path.join(root, "site", "tools", toolSlug);
 const testPath = path.join(root, "test", `generated-${toolSlug}.test.mjs`);
 const registryPath = path.join(root, "site", "generated-tools.json");
+const readmePath = path.join(root, "README.md");
 
 function sanitizeForJs(text) {
   return String(text || "")
@@ -367,6 +368,18 @@ button.ghost {
   color: var(--muted);
   font-family: "JetBrains Mono", monospace;
 }
+
+@media (max-width: 720px) {
+  .tool-shell {
+    width: 94%;
+    margin: 1rem auto;
+    padding: 1rem;
+  }
+
+  textarea {
+    min-height: 10rem;
+  }
+}
 `;
 }
 
@@ -457,7 +470,45 @@ test("base64 tool decodes URL-safe text", () => {
   const decoded = runTool("aGVsbG8", "decode");
   assert.equal(decoded, "hello");
 });
+
+test("base64 tool rejects empty input", () => {
+  assert.throws(() => runTool("   ", "encode"), /empty/i);
+});
+
+test("base64 tool rejects invalid decode input", () => {
+  assert.throws(() => runTool("%%%bad%%%", "decode"), /valid|invalid/i);
+});
 `;
+}
+
+function updateReadme(name, slug, summary) {
+  if (!fs.existsSync(readmePath)) {
+    return;
+  }
+
+  const entry = `- [${name}](site/tools/${slug}/) - ${summary}`;
+  let readme = fs.readFileSync(readmePath, "utf8");
+
+  if (readme.includes(`site/tools/${slug}/`)) {
+    return;
+  }
+
+  const sectionRegex = /## Generated Tools\s*([\s\S]*?)(?=\n## |\s*$)/m;
+  const match = readme.match(sectionRegex);
+
+  if (match) {
+    const content = (match[1] || "")
+      .split("\n")
+      .map((line) => line.trimEnd())
+      .filter(Boolean);
+    content.push(entry);
+    const replacement = `## Generated Tools\n\n${content.join("\n")}\n`;
+    readme = readme.replace(sectionRegex, replacement.trimEnd());
+  } else {
+    readme = `${readme.trimEnd()}\n\n## Generated Tools\n\n${entry}\n`;
+  }
+
+  fs.writeFileSync(readmePath, `${readme.trimEnd()}\n`);
 }
 
 function updateRegistry(slug, name, summary) {
@@ -505,5 +556,6 @@ const spec = generatedSpec || fallbackSpec(toolName);
 
 writeFiles(spec);
 updateRegistry(toolSlug, toolName, spec.summary);
+updateReadme(toolName, toolSlug, spec.summary);
 
 console.log(`Generated tool: ${toolSlug}`);

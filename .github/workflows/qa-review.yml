@@ -15,7 +15,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
 
@@ -64,11 +64,14 @@ jobs:
           ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
         with:
           script: |
+            const fs = require("fs");
+            const path = require("path");
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const prNumber = Number(process.env.PR_NUMBER);
             let issueNumber = Number(process.env.ISSUE_NUMBER || 0);
             const testOutcome = process.env.TEST_OUTCOME || "failure";
+            const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
             const ensureLabel = async (name, color, description) => {
               try {
                 await github.rest.issues.getLabel({ owner, repo, name });
@@ -122,6 +125,30 @@ jobs:
               .join("\n")
               .toLowerCase();
 
+            const logicPatchText = files
+              .filter((file) => /\.js$/.test(file.filename))
+              .map((file) => `${file.filename}\n${file.patch || ""}`)
+              .join("\n")
+              .toLowerCase();
+
+            const fileContains = (fileName, regex) => {
+              try {
+                const full = path.join(workspace, fileName);
+                const text = fs.readFileSync(full, "utf8");
+                return regex.test(text);
+              } catch {
+                return false;
+              }
+            };
+
+            const hasViewportMeta = files
+              .filter((file) => file.filename.toLowerCase().endsWith(".html"))
+              .some((file) => fileContains(file.filename, /<meta[^>]+name=["']viewport["'][^>]*>/i));
+
+            const hasResponsiveCss = files
+              .filter((file) => file.filename.toLowerCase().endsWith(".css"))
+              .some((file) => fileContains(file.filename, /@media\s*\(/i));
+
             const evaluateCriterion = (criterionText) => {
               const criterion = criterionText.toLowerCase();
 
@@ -143,12 +170,19 @@ jobs:
               }
 
               if (criterion.includes("input validation")) {
-                if (/(assert\.throws|throws\(|invalid|error)/.test(testPatchText)) {
-                  return { status: "pass", detail: "Validation/error assertions were found in tests." };
+                const hasValidationTests = /(assert\.throws|throws\(|invalid|error)/.test(testPatchText);
+                const hasValidationLogic = /(throw new error|invalid|empty|input cannot)/.test(
+                  logicPatchText
+                );
+                if (hasValidationTests && hasValidationLogic) {
+                  return {
+                    status: "pass",
+                    detail: "Validation assertions and error-handling logic were detected."
+                  };
                 }
                 return {
                   status: "fail",
-                  detail: "Input-validation assertions were not detected in PR tests."
+                  detail: "Input validation signal is incomplete in tests or logic."
                 };
               }
 
@@ -157,14 +191,20 @@ jobs:
                 criterion.includes("desktop") ||
                 criterion.includes("responsive")
               ) {
+                if (hasViewportMeta && hasResponsiveCss) {
+                  return {
+                    status: "pass",
+                    detail: "Viewport meta and responsive CSS media query were detected."
+                  };
+                }
                 return {
-                  status: "unmatched",
-                  detail: "Requires manual UI verification; no automatic matcher configured."
+                  status: "fail",
+                  detail: "Responsive signal missing (expected viewport meta + CSS media query)."
                 };
               }
 
               return {
-                status: "unmatched",
+                status: "fail",
                 detail: "No automatic acceptance matcher configured for this criterion."
               };
             };
@@ -179,10 +219,7 @@ jobs:
 
             const hasCriteria = acceptanceCriteria.length > 0;
             const hasFail = criterionResults.some((item) => item.status === "fail");
-            const hasUnmatched = criterionResults.some((item) => item.status === "unmatched");
-
-            const pass = testOutcome === "success" && hasCriteria && !hasFail && !hasUnmatched;
-            const qaDecision = pass ? "PASS" : "FAIL";
+            let qaPass = testOutcome === "success" && hasCriteria && !hasFail;
 
             const acceptanceSummary = hasCriteria
               ? criterionResults
@@ -192,6 +229,44 @@ jobs:
                   )
                   .join("\n")
               : "- FAIL: Acceptance criteria were not parsed from the linked issue.";
+
+            let mergeStatus = "not-attempted";
+            let mergeDetail = "QA did not pass, so auto-merge was skipped.";
+
+            if (qaPass) {
+              try {
+                const pr = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: prNumber
+                });
+
+                if (pr.data.merged) {
+                  mergeStatus = "already-merged";
+                  mergeDetail = "PR was already merged before this QA run.";
+                } else if (pr.data.state !== "open") {
+                  qaPass = false;
+                  mergeStatus = "failed";
+                  mergeDetail = `PR is not open (state: ${pr.data.state}).`;
+                } else {
+                  await github.rest.pulls.merge({
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    merge_method: "squash",
+                    commit_title: `[QA] Auto-merge PR #${prNumber}`
+                  });
+                  mergeStatus = "merged";
+                  mergeDetail = "PR merged automatically after QA pass.";
+                }
+              } catch (error) {
+                qaPass = false;
+                mergeStatus = "failed";
+                mergeDetail = `Auto-merge failed: ${error.message}`;
+              }
+            }
+
+            const qaDecision = qaPass ? "PASS" : "FAIL";
 
             await github.rest.issues.createComment({
               owner,
@@ -205,13 +280,55 @@ jobs:
                 "### Acceptance criteria status",
                 acceptanceSummary,
                 "",
-                pass
-                  ? "QA automation marked this change as ready to merge."
-                  : "QA automation blocked merge because criteria parsing/matching or tests failed."
+                "### Auto-merge status",
+                `- ${mergeStatus.toUpperCase()}: ${mergeDetail}`,
+                "",
+                qaPass
+                  ? "QA automation marked this change complete."
+                  : "QA automation blocked completion because tests/criteria/merge failed."
               ].join("\n")
             });
 
-            if (issueNumber && pass) {
+            const prIssue = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: prNumber
+            });
+            const prLabelNames = prIssue.data.labels.map((label) =>
+              typeof label === "string" ? label : label.name
+            );
+
+            if (qaPass) {
+              const updatedPrLabels = Array.from(
+                new Set([
+                  ...prLabelNames.filter((name) => name !== "status:qa-review" && name !== "status:in-progress"),
+                  "status:done",
+                  "role:qa"
+                ])
+              );
+              await github.rest.issues.setLabels({
+                owner,
+                repo,
+                issue_number: prNumber,
+                labels: updatedPrLabels
+              });
+            } else {
+              const updatedPrLabels = Array.from(
+                new Set([
+                  ...prLabelNames.filter((name) => name !== "status:done"),
+                  "status:qa-review",
+                  "role:qa"
+                ])
+              );
+              await github.rest.issues.setLabels({
+                owner,
+                repo,
+                issue_number: prNumber,
+                labels: updatedPrLabels
+              });
+            }
+
+            if (issueNumber && qaPass) {
               const issue = await github.rest.issues.get({
                 owner,
                 repo,
@@ -235,23 +352,18 @@ jobs:
                 issue_number: issueNumber,
                 labels: updated
               });
+
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                state: "closed",
+                state_reason: "completed"
+              });
             }
 
-            if (pass) {
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: prNumber,
-                labels: ["status:done", "role:qa"]
-              });
-            } else {
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: prNumber,
-                labels: ["status:qa-review", "role:qa"]
-              });
+            if (!qaPass) {
               core.setFailed(
-                "QA automation failed because tests failed or acceptance criteria were not fully parsed/matched."
+                "QA automation failed because tests, criteria matching, or auto-merge did not pass."
               );
             }

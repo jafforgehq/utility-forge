@@ -40,7 +40,8 @@ Ship one new developer utility every day with quality gates.
    - Functional behavior
    - Error handling
    - Test coverage for core logic
-4. Merge to `main` triggers GitHub Pages deployment.
+4. On QA pass, PR auto-merges and linked issue auto-closes.
+5. Merge to `main` triggers GitHub Pages deployment.
 
 ## Automation Workflows
 

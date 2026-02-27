@@ -59,7 +59,7 @@ Workflow: `.github/workflows/qa-review.yml`
 What it does:
 - Triggered by Software Engineer handoff dispatch.
 - Waits 15 minutes before running QA checks (hard delay gate).
-- Runs tests, posts a QA pass/fail report on the PR, and updates labels.
+- Runs tests plus acceptance-criteria matching, posts a QA report, auto-merges passing PRs, and closes linked issues.
 
 ## Role Operating Model
 
