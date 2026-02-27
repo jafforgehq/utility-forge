@@ -15,6 +15,7 @@ on:
         type: string
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
   issues: write
@@ -232,6 +233,8 @@ jobs:
 
             let mergeStatus = "not-attempted";
             let mergeDetail = "QA did not pass, so auto-merge was skipped.";
+            let deployStatus = "skipped";
+            let deployDetail = "Deployment dispatch was skipped because merge did not happen.";
 
             if (qaPass) {
               try {
@@ -266,6 +269,23 @@ jobs:
               }
             }
 
+            if (qaPass) {
+              try {
+                await github.rest.actions.createWorkflowDispatch({
+                  owner,
+                  repo,
+                  workflow_id: "pages.yml",
+                  ref: "main"
+                });
+                deployStatus = "dispatched";
+                deployDetail = "GitHub Pages deployment workflow was dispatched.";
+              } catch (error) {
+                qaPass = false;
+                deployStatus = "failed";
+                deployDetail = `Pages dispatch failed: ${error.message}`;
+              }
+            }
+
             const qaDecision = qaPass ? "PASS" : "FAIL";
 
             await github.rest.issues.createComment({
@@ -282,6 +302,9 @@ jobs:
                 "",
                 "### Auto-merge status",
                 `- ${mergeStatus.toUpperCase()}: ${mergeDetail}`,
+                "",
+                "### Deploy status",
+                `- ${deployStatus.toUpperCase()}: ${deployDetail}`,
                 "",
                 qaPass
                   ? "QA automation marked this change complete."
