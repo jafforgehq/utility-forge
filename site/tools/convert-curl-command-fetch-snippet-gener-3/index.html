@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Convert curl command -&gt; fetch snippet generator - Utility Forge</title>
+    <meta name="description" content="Normalize and sort lines of text for quick developer cleanup tasks." />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="tool-shell">
+      <a class="back-link" href="../../index.html">Back to Utility Forge</a>
+      <h1>Convert curl command -&gt; fetch snippet generator</h1>
+      <p id="summary">Normalize and sort lines of text for quick developer cleanup tasks.</p>
+
+      <label for="modeSelect">Mode</label>
+      <select id="modeSelect"></select>
+
+      <label for="toolInput">Input</label>
+      <textarea id="toolInput" spellcheck="false"></textarea>
+
+      <label for="toolOutput">Output</label>
+      <textarea id="toolOutput" spellcheck="false" readonly></textarea>
+
+      <div class="actions">
+        <button id="runBtn" type="button">Run</button>
+        <button id="copyBtn" type="button" class="ghost">Copy Output</button>
+      </div>
+
+      <p id="status" aria-live="polite">Ready.</p>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

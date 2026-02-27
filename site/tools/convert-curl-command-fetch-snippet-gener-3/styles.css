@@ -1,0 +1,105 @@
+:root {
+  --bg: #0e1215;
+  --panel: #19242c;
+  --line: #2f4d5b;
+  --text: #eaf6fb;
+  --muted: #a8c7d6;
+  --accent: #5fd1ff;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 10%, #1a2b34, #0e1215 55%);
+  color: var(--text);
+  font-family: "Chivo", sans-serif;
+}
+
+.tool-shell {
+  width: min(860px, 92%);
+  margin: 2rem auto;
+  padding: 1.2rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(25, 36, 44, 0.92);
+}
+
+.back-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+h1 {
+  margin-bottom: 0.4rem;
+}
+
+#summary {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+label {
+  display: block;
+  margin-top: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+textarea,
+select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 0.6rem;
+  color: var(--text);
+  background: rgba(8, 13, 17, 0.8);
+  font-family: "JetBrains Mono", monospace;
+}
+
+textarea {
+  min-height: 12rem;
+  resize: vertical;
+}
+
+.actions {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 0.6rem;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  background: var(--accent);
+  color: #0b1a21;
+  cursor: pointer;
+}
+
+button.ghost {
+  background: #24404d;
+  color: var(--text);
+}
+
+#status {
+  margin-top: 0.85rem;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+}
+
+@media (max-width: 720px) {
+  .tool-shell {
+    width: 94%;
+    margin: 1rem auto;
+    padding: 1rem;
+  }
+
+  textarea {
+    min-height: 10rem;
+  }
+}
