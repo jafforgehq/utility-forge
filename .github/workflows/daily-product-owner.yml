@@ -6,8 +6,13 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   issues: write
+
+concurrency:
+  group: daily-product-owner-idea
+  cancel-in-progress: false
 
 jobs:
   create-daily-idea:
@@ -21,6 +26,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL || 'gpt-4o-mini' }}
+          OPENAI_DAILY_CALL_LIMIT: ${{ vars.OPENAI_DAILY_CALL_LIMIT || secrets.OPENAI_DAILY_CALL_LIMIT || '1' }}
         with:
           script: |
             const fs = require("fs");
@@ -29,6 +35,7 @@ jobs:
             const repo = context.repo.repo;
             const dateTag = new Date().toISOString().slice(0, 10);
             const title = `[Product Owner] Daily Tool Idea ${dateTag}`;
+            const aiCallLimit = Number(process.env.OPENAI_DAILY_CALL_LIMIT || "1");
 
             async function ensureLabel(name, color, description) {
               try {
@@ -49,7 +56,7 @@ jobs:
             await ensureLabel("status:ready-for-engineering", "0a9396", "Ready for Software Engineer");
             await ensureLabel("type:tool", "94d2bd", "Developer tool request");
 
-            const existing = await github.rest.issues.listForRepo({
+            const existingOpen = await github.rest.issues.listForRepo({
               owner,
               repo,
               state: "open",
@@ -57,10 +64,42 @@ jobs:
               per_page: 100
             });
 
-            if (existing.data.some((issue) => issue.title === title)) {
+            if (existingOpen.data.some((issue) => issue.title === title)) {
               core.info(`Issue already exists for ${dateTag}.`);
               return;
             }
+
+            const recent = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "all",
+              labels: "role:product-owner",
+              per_page: 100
+            });
+
+            const extractToolName = (body, fallbackTitle = "") => {
+              const match = String(body || "").match(/## Tool\\s*([\\s\\S]*?)(\\n## |\\n---|$)/i);
+              if (!match || !match[1]) return fallbackTitle;
+              const line = match[1]
+                .split("\\n")
+                .map((row) => row.trim())
+                .find(Boolean);
+              return line || fallbackTitle;
+            };
+
+            const normalize = (text) =>
+              String(text || "")
+                .toLowerCase()
+                .replace(/\\[[^\\]]+\\]/g, "")
+                .replace(/[^a-z0-9\\s]/g, " ")
+                .replace(/\\s+/g, " ")
+                .trim();
+
+            const existingToolNames = new Set(
+              recent.data.map((issue) =>
+                normalize(extractToolName(issue.body, issue.title.replace(/^\\[[^\\]]+\\]\\s*/, "")))
+              )
+            );
 
             const seeds = fs.readFileSync("data/idea-seeds.md", "utf8");
             const seedLines = seeds
@@ -69,57 +108,102 @@ jobs:
               .filter((line) => line.startsWith("- "))
               .map((line) => line.slice(2));
 
-            const fallbackSeed = seedLines[new Date().getUTCDate() % seedLines.length] || "Semver comparison utility";
+            const fallbackSeed =
+              seedLines.find((seed) => !existingToolNames.has(normalize(seed))) ||
+              `Semver comparison utility ${dateTag}`;
+
             let brief = "";
+            let toolName = "";
 
-            if (process.env.OPENAI_API_KEY) {
+            const allRuns = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              per_page: 100
+            });
+            const aiCallsToday = allRuns.data.workflow_runs.filter(
+              (run) =>
+                run.path === ".github/workflows/daily-product-owner.yml" &&
+                run.created_at.startsWith(dateTag) &&
+                Number(run.id) !== Number(context.runId)
+            ).length;
+
+            const canUseAI =
+              Boolean(process.env.OPENAI_API_KEY) &&
+              Number.isFinite(aiCallLimit) &&
+              aiCallLimit > 0 &&
+              aiCallsToday < aiCallLimit;
+
+            const generateIdea = async (extraInstruction = "") => {
+              const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+                },
+                body: JSON.stringify({
+                  model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+                  temperature: 0.6,
+                  max_tokens: 700,
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are a Product Owner creating exactly one practical micro-tool idea for developers."
+                    },
+                    {
+                      role: "user",
+                      content: [
+                        "Create one new daily tool idea for Utility Forge.",
+                        "Return markdown with sections:",
+                        "## Tool",
+                        "## Problem",
+                        "## Users",
+                        "## MVP Scope",
+                        "## Acceptance Criteria (3-5 bullet points)",
+                        "",
+                        `Seed direction: ${fallbackSeed}`,
+                        `Avoid duplicate tool names or near matches: ${Array.from(existingToolNames).join("; ")}`,
+                        extraInstruction
+                      ]
+                        .filter(Boolean)
+                        .join("\n")
+                    }
+                  ]
+                })
+              });
+
+              if (!response.ok) {
+                throw new Error(`OpenAI call failed (${response.status})`);
+              }
+
+              const payload = await response.json();
+              const content = payload.choices?.[0]?.message?.content?.trim() || "";
+              return content;
+            };
+
+            if (canUseAI) {
               try {
-                const response = await fetch("https://api.openai.com/v1/chat/completions", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-                  },
-                  body: JSON.stringify({
-                    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-                    temperature: 0.7,
-                    messages: [
-                      {
-                        role: "system",
-                        content:
-                          "You are a Product Owner creating exactly one practical micro-tool idea for developers."
-                      },
-                      {
-                        role: "user",
-                        content: [
-                          "Create one new daily tool idea for Utility Forge.",
-                          "Return markdown with sections:",
-                          "## Tool",
-                          "## Problem",
-                          "## Users",
-                          "## MVP Scope",
-                          "## Acceptance Criteria (3-5 bullet points)",
-                          `Seed direction: ${fallbackSeed}`
-                        ].join("\n")
-                      }
-                    ]
-                  })
-                });
+                brief = await generateIdea();
+                toolName = extractToolName(brief, "");
 
-                if (!response.ok) {
-                  throw new Error(`OpenAI call failed (${response.status})`);
+                if (!toolName || existingToolNames.has(normalize(toolName))) {
+                  brief = await generateIdea(
+                    "Previous answer duplicated an existing tool. Generate a clearly different tool idea."
+                  );
+                  toolName = extractToolName(brief, "");
                 }
-
-                const payload = await response.json();
-                brief = payload.choices?.[0]?.message?.content?.trim() || "";
               } catch (error) {
                 core.warning(`OpenAI generation failed: ${error.message}`);
               }
+            } else if (process.env.OPENAI_API_KEY && aiCallsToday >= aiCallLimit) {
+              core.warning(
+                `OPENAI_DAILY_CALL_LIMIT reached (${aiCallsToday}/${aiCallLimit}). Using fallback idea.`
+              );
             } else {
               core.warning("OPENAI_API_KEY is not set. Using deterministic fallback idea.");
             }
 
-            if (!brief) {
+            if (!brief || !toolName || existingToolNames.has(normalize(toolName))) {
               brief = [
                 "## Tool",
                 fallbackSeed,

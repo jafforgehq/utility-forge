@@ -32,11 +32,34 @@ What it does:
 - Runs every day.
 - Uses OpenAI API to generate one fresh tool idea.
 - Creates a GitHub issue labeled for handoff to engineering.
+- Enforces guardrails:
+  - Max one daily issue per date tag
+  - Duplicate tool-name detection with one regeneration attempt
+  - Daily model-call limit (`OPENAI_DAILY_CALL_LIMIT`)
 
 Required repo settings:
 1. Add secret: `OPENAI_API_KEY`
-2. Add optional repository variable: `OPENAI_MODEL`
-3. If `OPENAI_MODEL` is not set, workflow defaults to `gpt-4o-mini` (low-cost baseline model)
+2. Add optional variable or secret: `OPENAI_MODEL`
+3. Add optional variable or secret: `OPENAI_DAILY_CALL_LIMIT` (default: `1`)
+4. If `OPENAI_MODEL` is not set, workflow defaults to `gpt-4o-mini` (low-cost baseline model)
+
+## Software Engineer Automation
+
+Workflow: `.github/workflows/software-engineer.yml`
+
+What it does:
+- Triggers when an issue gets `status:ready-for-engineering`.
+- Creates a `codex/...` branch, generates a tool implementation, runs tests, and opens a PR.
+- Dispatches QA handoff event after PR creation.
+
+## QA Automation
+
+Workflow: `.github/workflows/qa-review.yml`
+
+What it does:
+- Triggered by Software Engineer handoff dispatch.
+- Waits 15 minutes before running QA checks (hard delay gate).
+- Runs tests, posts a QA pass/fail report on the PR, and updates labels.
 
 ## Role Operating Model
 
@@ -49,4 +72,3 @@ The Product Owner idea generator uses:
 - Existing repo context to avoid duplicate ideas
 
 This keeps idea generation consistent while still producing one new concept daily.
-

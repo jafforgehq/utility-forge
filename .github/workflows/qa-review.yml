@@ -1,0 +1,177 @@
+name: QA Review Automation
+
+on:
+  repository_dispatch:
+    types: [se_pr_ready]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: string
+      issue_number:
+        description: "Issue number linked to the PR"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  qa-review:
+    runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ github.event.client_payload.pr_number || github.event.inputs.pr_number }}
+      ISSUE_NUMBER: ${{ github.event.client_payload.issue_number || github.event.inputs.issue_number }}
+    steps:
+      - name: Ensure input payload exists
+        run: |
+          if [ -z "${PR_NUMBER}" ]; then
+            echo "Missing PR_NUMBER."
+            exit 1
+          fi
+
+      - name: Wait 15 minutes before QA starts
+        run: sleep 900
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ env.PR_NUMBER }}/head
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run QA test suite
+        id: tests
+        continue-on-error: true
+        run: npm test
+
+      - name: Publish QA report
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = Number(process.env.PR_NUMBER);
+            let issueNumber = Number(process.env.ISSUE_NUMBER || 0);
+            const testOutcome = process.env.TEST_OUTCOME || "failure";
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            };
+
+            await ensureLabel("role:qa", "6d597a", "Issue owned by QA");
+            await ensureLabel("status:qa-review", "ca6702", "Waiting for QA verification");
+            await ensureLabel("status:done", "386641", "Completed and merged");
+
+            if (!issueNumber) {
+              const pr = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+              const body = pr.data.body || "";
+              const match = body.match(/#(\\d+)/);
+              if (match) {
+                issueNumber = Number(match[1]);
+              }
+            }
+
+            let acceptanceCriteria = [];
+            if (issueNumber) {
+              const issue = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber
+              });
+              const body = issue.data.body || "";
+              const section = body.match(/## Acceptance Criteria[\\s\\S]*?(\\n## |\\n---|$)/i);
+              if (section?.[0]) {
+                acceptanceCriteria = section[0]
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter((line) => line.startsWith("- "));
+              }
+            }
+
+            const pass = testOutcome === "success";
+            const qaDecision = pass ? "PASS" : "FAIL";
+            const acceptanceSummary =
+              acceptanceCriteria.length > 0
+                ? acceptanceCriteria.map((line) => `- ${pass ? "Pass" : "Needs manual check"}: ${line.slice(2)}`).join("\n")
+                : "- Acceptance criteria were not parsed automatically.";
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNumber,
+              body: [
+                "## QA Review Report",
+                `Decision: **${qaDecision}**`,
+                `Automated tests: **${testOutcome}**`,
+                "",
+                "### Acceptance criteria status",
+                acceptanceSummary,
+                "",
+                pass
+                  ? "QA automation marked this change as ready to merge."
+                  : "QA automation found failing checks. Please update the PR and rerun QA."
+              ].join("\n")
+            });
+
+            if (issueNumber && pass) {
+              const issue = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber
+              });
+              const names = issue.data.labels.map((label) =>
+                typeof label === "string" ? label : label.name
+              );
+              const updated = Array.from(
+                new Set([
+                  ...names.filter(
+                    (name) => name !== "status:qa-review" && name !== "status:in-progress"
+                  ),
+                  "status:done",
+                  "role:qa"
+                ])
+              );
+              await github.rest.issues.setLabels({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                labels: updated
+              });
+            }
+
+            if (pass) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: prNumber,
+                labels: ["status:done", "role:qa"]
+              });
+            } else {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: prNumber,
+                labels: ["status:qa-review", "role:qa"]
+              });
+              core.setFailed("QA automation failed due to failing test checks.");
+            }

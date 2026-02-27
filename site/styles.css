@@ -205,6 +205,34 @@ button.ghost {
   margin-top: 0.25rem;
 }
 
+.generated-subhead {
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+}
+
+.generated-tools-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.generated-tools-list li + li {
+  margin-top: 0.35rem;
+}
+
+.generated-tools-list a {
+  color: var(--primary);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.generated-tools-list a:hover {
+  border-bottom-color: var(--primary);
+}
+
+.generated-empty {
+  color: var(--muted);
+}
+
 .reveal {
   animation: rise-in 440ms ease both;
 }
@@ -241,4 +269,3 @@ button.ghost {
     margin-top: 1.5rem;
   }
 }
-

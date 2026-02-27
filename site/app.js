@@ -10,6 +10,7 @@ const minifyBtn = document.querySelector("#minifyBtn");
 const sortBtn = document.querySelector("#sortBtn");
 const copyBtn = document.querySelector("#copyBtn");
 const swapBtn = document.querySelector("#swapBtn");
+const generatedToolsEl = document.querySelector("#generatedTools");
 
 const sample = `{
   "tool": "utility-forge",
@@ -79,3 +80,44 @@ swapBtn.addEventListener("click", () => {
 setStatus("Ready.", "ok");
 setStats(inputEl.value, outputEl.value);
 
+async function loadGeneratedTools() {
+  if (!generatedToolsEl) {
+    return;
+  }
+
+  try {
+    const response = await fetch("./generated-tools.json", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Generated tools fetch failed (${response.status}).`);
+    }
+
+    const tools = await response.json();
+    if (!Array.isArray(tools) || tools.length === 0) {
+      generatedToolsEl.innerHTML = '<li class="generated-empty">No generated tools yet.</li>';
+      return;
+    }
+
+    generatedToolsEl.innerHTML = "";
+
+    for (const tool of tools) {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = tool.path;
+      link.textContent = tool.title || tool.slug || "Generated tool";
+      link.rel = "noopener noreferrer";
+      item.appendChild(link);
+
+      if (tool.summary) {
+        const summary = document.createElement("span");
+        summary.textContent = ` - ${tool.summary}`;
+        item.appendChild(summary);
+      }
+
+      generatedToolsEl.appendChild(item);
+    }
+  } catch {
+    generatedToolsEl.innerHTML = '<li class="generated-empty">Could not load generated tools.</li>';
+  }
+}
+
+loadGeneratedTools();

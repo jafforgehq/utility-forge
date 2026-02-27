@@ -1,0 +1,294 @@
+name: Software Engineer Automation
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to implement"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: software-engineer-${{ github.event.issue.number || github.event.inputs.issue_number || 'manual' }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       github.event.action == 'labeled' &&
+       github.event.label.name == 'status:ready-for-engineering')
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL || 'gpt-4o-mini' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Identify issue and prepare metadata
+        id: select
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            };
+
+            await ensureLabel("role:software-engineer", "1d3557", "Issue owned by Software Engineer");
+            await ensureLabel("status:in-progress", "ee9b00", "Implementation in progress");
+            await ensureLabel("status:qa-review", "ca6702", "Waiting for QA verification");
+
+            const inputIssue = context.payload.inputs?.issue_number || "";
+            const issueNumber = Number(inputIssue || context.payload.issue?.number || 0);
+            if (!issueNumber) {
+              core.setOutput("should_run", "false");
+              core.notice("No issue number supplied.");
+              return;
+            }
+
+            const issueResp = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: issueNumber
+            });
+            const issue = issueResp.data;
+
+            if (issue.pull_request) {
+              core.setOutput("should_run", "false");
+              core.notice("Issue is a pull request.");
+              return;
+            }
+
+            if (issue.state !== "open") {
+              core.setOutput("should_run", "false");
+              core.notice("Issue is not open.");
+              return;
+            }
+
+            const labelNames = issue.labels.map((label) =>
+              typeof label === "string" ? label : label.name
+            );
+
+            if (!labelNames.includes("status:ready-for-engineering")) {
+              core.setOutput("should_run", "false");
+              core.notice("Issue is not labeled status:ready-for-engineering.");
+              return;
+            }
+
+            const extractToolName = (body, fallbackTitle) => {
+              const match = String(body || "").match(/## Tool\\s*([\\s\\S]*?)(\\n## |\\n---|$)/i);
+              if (!match || !match[1]) return fallbackTitle;
+              const line = match[1]
+                .split("\\n")
+                .map((row) => row.trim())
+                .find(Boolean);
+              return line || fallbackTitle;
+            };
+
+            const toolName = extractToolName(issue.body, issue.title.replace(/^\\[[^\\]]+\\]\\s*/, ""));
+            const baseSlug = toolName
+              .toLowerCase()
+              .replace(/[^a-z0-9\\s-]/g, "")
+              .trim()
+              .replace(/\\s+/g, "-")
+              .replace(/-+/g, "-")
+              .slice(0, 40) || `tool-${issueNumber}`;
+            const slug = `${baseSlug}-${issueNumber}`;
+            const branch = `codex/se-issue-${issueNumber}-${slug}`.slice(0, 90);
+
+            const existingPrs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: "open",
+              head: `${owner}:${branch}`,
+              per_page: 1
+            });
+
+            if (existingPrs.data.length > 0) {
+              core.setOutput("should_run", "false");
+              core.notice(`Open PR already exists for branch ${branch}.`);
+              return;
+            }
+
+            const nextLabels = Array.from(
+              new Set([
+                ...labelNames.filter((name) => name !== "status:ready-for-engineering"),
+                "role:software-engineer",
+                "status:in-progress"
+              ])
+            );
+
+            await github.rest.issues.setLabels({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels: nextLabels
+            });
+
+            core.setOutput("should_run", "true");
+            core.setOutput("issue_number", String(issueNumber));
+            core.setOutput("tool_name", toolName);
+            core.setOutput("tool_slug", slug);
+            core.setOutput("issue_title", issue.title);
+            core.setOutput("issue_body", issue.body || "");
+            core.setOutput("branch", branch);
+
+      - name: Stop when no eligible issue found
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "No eligible issue to implement."
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: npm ci
+
+      - name: Configure git
+        if: steps.select.outputs.should_run == 'true'
+        run: |
+          git config user.name "utility-forge-software-engineer[bot]"
+          git config user.email "utility-forge-software-engineer[bot]@users.noreply.github.com"
+
+      - name: Create implementation branch
+        if: steps.select.outputs.should_run == 'true'
+        run: git checkout -b "${{ steps.select.outputs.branch }}"
+
+      - name: Generate tool implementation
+        if: steps.select.outputs.should_run == 'true'
+        env:
+          ISSUE_NUMBER: ${{ steps.select.outputs.issue_number }}
+          TOOL_NAME: ${{ steps.select.outputs.tool_name }}
+          TOOL_SLUG: ${{ steps.select.outputs.tool_slug }}
+          ISSUE_BODY: ${{ steps.select.outputs.issue_body }}
+        run: node .github/scripts/software-engineer-generate.mjs
+
+      - name: Run tests
+        if: steps.select.outputs.should_run == 'true'
+        run: npm test
+
+      - name: Commit and push
+        if: steps.select.outputs.should_run == 'true'
+        id: commit
+        run: |
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes generated. Exiting."
+            echo "did_push=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Add generated tool for issue #${{ steps.select.outputs.issue_number }}"
+          git push -u origin "${{ steps.select.outputs.branch }}"
+          echo "did_push=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open pull request and handoff to QA
+        if: steps.select.outputs.should_run == 'true' && steps.commit.outputs.did_push == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = Number(`${{ steps.select.outputs.issue_number }}`);
+            const branch = `${{ steps.select.outputs.branch }}`;
+            const toolName = `${{ steps.select.outputs.tool_name }}`;
+
+            const prs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: "open",
+              head: `${owner}:${branch}`,
+              per_page: 1
+            });
+
+            let pr = prs.data[0];
+            if (!pr) {
+              const created = await github.rest.pulls.create({
+                owner,
+                repo,
+                head: branch,
+                base: "main",
+                title: `[Software Engineer] ${toolName}`,
+                body: [
+                  `Implements Product Owner issue #${issueNumber}.`,
+                  "",
+                  "## What this PR includes",
+                  "- Generated tool page under `site/tools/`",
+                  "- Logic module for the tool",
+                  "- Automated tests for core logic",
+                  "- Registry update for homepage listing",
+                  "",
+                  `Closes #${issueNumber}`
+                ].join("\n")
+              });
+              pr = created.data;
+            }
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: pr.number,
+              labels: ["role:software-engineer", "status:qa-review"]
+            });
+
+            const issue = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: issueNumber
+            });
+            const issueLabels = issue.data.labels.map((label) =>
+              typeof label === "string" ? label : label.name
+            );
+
+            const nextIssueLabels = Array.from(
+              new Set([
+                ...issueLabels.filter((name) => name !== "status:in-progress"),
+                "status:qa-review"
+              ])
+            );
+
+            await github.rest.issues.setLabels({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels: nextIssueLabels
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: `Software Engineer opened PR #${pr.number}. QA review starts automatically after 15 minutes.`
+            });
+
+            await github.rest.repos.createDispatchEvent({
+              owner,
+              repo,
+              event_type: "se_pr_ready",
+              client_payload: {
+                pr_number: pr.number,
+                issue_number: issueNumber
+              }
+            });
