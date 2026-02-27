@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Utility Forge - JSON Tool</title>
+    <meta
+      name="description"
+      content="Utility Forge ships developer tools daily. Start with JSON format, minify, and key sorting."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-a" aria-hidden="true"></div>
+    <div class="bg-orb bg-orb-b" aria-hidden="true"></div>
+
+    <main class="container">
+      <header class="hero reveal">
+        <p class="eyebrow">Utility Forge</p>
+        <h1>One New Developer Tool Every Day</h1>
+        <p class="subhead">
+          Autonomous workflow with <strong>Product Owner</strong>,
+          <strong>Software Engineer</strong>, and <strong>QA</strong>.
+        </p>
+      </header>
+
+      <section class="tool-panel reveal" aria-labelledby="tool-title">
+        <div class="tool-head">
+          <h2 id="tool-title">Tool #1: JSON Formatter</h2>
+          <span class="pill">v1 live</span>
+        </div>
+
+        <div class="grid">
+          <label class="pane">
+            <span>Input JSON</span>
+            <textarea id="jsonInput" spellcheck="false"></textarea>
+          </label>
+
+          <label class="pane">
+            <span>Output</span>
+            <textarea id="jsonOutput" spellcheck="false" readonly></textarea>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="formatBtn" type="button">Format</button>
+          <button id="minifyBtn" type="button">Minify</button>
+          <button id="sortBtn" type="button">Sort Keys</button>
+          <button id="copyBtn" type="button" class="ghost">Copy Output</button>
+          <button id="swapBtn" type="button" class="ghost">Use Output as Input</button>
+        </div>
+
+        <div class="meta">
+          <p id="status" role="status" aria-live="polite">Ready.</p>
+          <p id="stats">Input chars: 0 | Output chars: 0</p>
+        </div>
+      </section>
+
+      <section class="ops reveal" aria-labelledby="ops-title">
+        <h2 id="ops-title">Autonomous Daily Pipeline</h2>
+        <ol>
+          <li>Product Owner creates one idea issue daily (AI-assisted).</li>
+          <li>Software Engineer implements and opens PR.</li>
+          <li>QA verifies behavior + tests before merge.</li>
+          <li>Merge deploys to GitHub Pages automatically.</li>
+        </ol>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,52 @@
+name: Product Owner - Tool Idea
+description: New daily utility proposal for engineering
+title: "[Product Owner] "
+labels:
+  - role:product-owner
+  - status:ready-for-engineering
+  - type:tool
+body:
+  - type: input
+    id: tool_name
+    attributes:
+      label: Tool name
+      placeholder: "e.g. HTTP Header Diff Checker"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What painful developer task does this tool remove?
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Target users
+      placeholder: "Backend engineers, DevOps, frontend developers..."
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: MVP scope
+      description: Keep it small enough to ship in one day.
+      value: |
+        - 
+        - 
+        - 
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: 3-5 testable checks QA can verify.
+      value: |
+        - 
+        - 
+        - 
+    validations:
+      required: true
+

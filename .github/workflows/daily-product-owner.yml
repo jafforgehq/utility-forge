@@ -1,0 +1,164 @@
+name: Daily Product Owner Idea
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-daily-idea:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate idea and open issue
+        uses: actions/github-script@v7
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL != '' && vars.OPENAI_MODEL || 'gpt-4o-mini' }}
+        with:
+          script: |
+            const fs = require("fs");
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const dateTag = new Date().toISOString().slice(0, 10);
+            const title = `[Product Owner] Daily Tool Idea ${dateTag}`;
+
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name,
+                  color,
+                  description
+                });
+              }
+            }
+
+            await ensureLabel("role:product-owner", "005f73", "Issue created by Product Owner");
+            await ensureLabel("status:ready-for-engineering", "0a9396", "Ready for Software Engineer");
+            await ensureLabel("type:tool", "94d2bd", "Developer tool request");
+
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              labels: "role:product-owner",
+              per_page: 100
+            });
+
+            if (existing.data.some((issue) => issue.title === title)) {
+              core.info(`Issue already exists for ${dateTag}.`);
+              return;
+            }
+
+            const seeds = fs.readFileSync("data/idea-seeds.md", "utf8");
+            const seedLines = seeds
+              .split("\n")
+              .map((line) => line.trim())
+              .filter((line) => line.startsWith("- "))
+              .map((line) => line.slice(2));
+
+            const fallbackSeed = seedLines[new Date().getUTCDate() % seedLines.length] || "Semver comparison utility";
+            let brief = "";
+
+            if (process.env.OPENAI_API_KEY) {
+              try {
+                const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+                  },
+                  body: JSON.stringify({
+                    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+                    temperature: 0.7,
+                    messages: [
+                      {
+                        role: "system",
+                        content:
+                          "You are a Product Owner creating exactly one practical micro-tool idea for developers."
+                      },
+                      {
+                        role: "user",
+                        content: [
+                          "Create one new daily tool idea for Utility Forge.",
+                          "Return markdown with sections:",
+                          "## Tool",
+                          "## Problem",
+                          "## Users",
+                          "## MVP Scope",
+                          "## Acceptance Criteria (3-5 bullet points)",
+                          `Seed direction: ${fallbackSeed}`
+                        ].join("\n")
+                      }
+                    ]
+                  })
+                });
+
+                if (!response.ok) {
+                  throw new Error(`OpenAI call failed (${response.status})`);
+                }
+
+                const payload = await response.json();
+                brief = payload.choices?.[0]?.message?.content?.trim() || "";
+              } catch (error) {
+                core.warning(`OpenAI generation failed: ${error.message}`);
+              }
+            } else {
+              core.warning("OPENAI_API_KEY is not set. Using deterministic fallback idea.");
+            }
+
+            if (!brief) {
+              brief = [
+                "## Tool",
+                fallbackSeed,
+                "",
+                "## Problem",
+                "Developers waste time searching for tiny one-off conversions and lookups.",
+                "",
+                "## Users",
+                "Frontend and backend engineers shipping quickly.",
+                "",
+                "## MVP Scope",
+                "- Single-page utility",
+                "- Instant client-side result",
+                "- Copy-to-clipboard support",
+                "",
+                "## Acceptance Criteria",
+                "- Input validation with useful errors",
+                "- Mobile + desktop layout works",
+                "- Core logic has automated tests",
+                "- README updated with usage"
+              ].join("\n");
+            }
+
+            const body = [
+              "Daily idea generated by **Product Owner automation**.",
+              "",
+              brief,
+              "",
+              "---",
+              "### Handoff",
+              "- Software Engineer: implement this tool in `site/` and add tests in `test/`.",
+              "- QA: validate against acceptance criteria and approve merge."
+            ].join("\n");
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body,
+              labels: ["role:product-owner", "status:ready-for-engineering", "type:tool"]
+            });
+

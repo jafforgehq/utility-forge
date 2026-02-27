@@ -1,0 +1,44 @@
+name: QA - Verification Checklist
+description: QA sign-off checklist before merge
+title: "[QA] "
+labels:
+  - role:qa
+  - status:qa-review
+body:
+  - type: input
+    id: source_pr
+    attributes:
+      label: Pull request to verify
+      placeholder: "#456"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_result
+    attributes:
+      label: Acceptance criteria verification
+      description: Map each criterion to Pass/Fail with notes.
+      value: |
+        - Criterion 1: 
+        - Criterion 2: 
+        - Criterion 3: 
+    validations:
+      required: true
+  - type: textarea
+    id: regression_checks
+    attributes:
+      label: Regression and risk checks
+      value: |
+        - 
+        - 
+    validations:
+      required: true
+  - type: dropdown
+    id: release_decision
+    attributes:
+      label: QA decision
+      options:
+        - Approve
+        - Block
+    validations:
+      required: true
+

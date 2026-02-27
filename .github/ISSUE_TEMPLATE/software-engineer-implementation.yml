@@ -1,0 +1,44 @@
+name: Software Engineer - Implementation Plan
+description: Engineering execution checklist for a Product Owner idea
+title: "[Software Engineer] "
+labels:
+  - role:software-engineer
+  - status:in-progress
+body:
+  - type: input
+    id: source_issue
+    attributes:
+      label: Product Owner source issue
+      placeholder: "#123"
+    validations:
+      required: true
+  - type: textarea
+    id: implementation_plan
+    attributes:
+      label: Implementation plan
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and mitigations
+      value: |
+        - Risk: 
+          Mitigation: 
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test plan
+      value: |
+        - Unit:
+        - Edge cases:
+        - Manual checks:
+    validations:
+      required: true
+

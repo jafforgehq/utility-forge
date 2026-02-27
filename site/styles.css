@@ -1,0 +1,244 @@
+:root {
+  --bg: #0d1114;
+  --panel: rgba(16, 24, 31, 0.82);
+  --panel-border: rgba(191, 228, 243, 0.2);
+  --text: #e5f4fa;
+  --muted: #9cc2d1;
+  --primary: #5fd1ff;
+  --primary-strong: #1aa0d8;
+  --alert: #ff8664;
+  --ok: #66da8f;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 20%, #18242b 0%, var(--bg) 40%, #07090a 100%);
+  color: var(--text);
+  font-family: "Chivo", sans-serif;
+  line-height: 1.45;
+  overflow-x: hidden;
+}
+
+.bg-orb {
+  position: fixed;
+  width: 36rem;
+  height: 36rem;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-orb-a {
+  background: #2db2d6;
+  top: -10rem;
+  left: -8rem;
+}
+
+.bg-orb-b {
+  background: #f47e5d;
+  right: -8rem;
+  bottom: -10rem;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  width: min(1100px, 92%);
+  margin: 2.4rem auto 4rem;
+}
+
+.hero h1 {
+  margin: 0.35rem 0 0.8rem;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  letter-spacing: 0.01em;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+}
+
+.subhead {
+  margin: 0;
+  max-width: 64ch;
+  color: var(--muted);
+}
+
+.tool-panel,
+.ops {
+  margin-top: 1.6rem;
+  padding: 1.2rem;
+  border-radius: 16px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  backdrop-filter: blur(6px);
+}
+
+.tool-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tool-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.pill {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #001018;
+  background: var(--primary);
+  padding: 0.25rem 0.55rem;
+  border-radius: 99px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+textarea {
+  width: 100%;
+  min-height: 16rem;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid rgba(164, 210, 228, 0.2);
+  padding: 0.75rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text);
+  background: rgba(7, 15, 20, 0.8);
+}
+
+textarea:focus {
+  outline: 2px solid rgba(95, 209, 255, 0.55);
+  border-color: transparent;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.58rem 0.92rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.83rem;
+  background: linear-gradient(120deg, var(--primary), var(--primary-strong));
+  color: #02131b;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.06);
+}
+
+button.ghost {
+  color: var(--text);
+  background: rgba(38, 63, 75, 0.6);
+  border: 1px solid rgba(164, 210, 228, 0.2);
+}
+
+.meta {
+  margin-top: 0.95rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+#status[data-state="ok"] {
+  color: var(--ok);
+}
+
+#status[data-state="error"] {
+  color: var(--alert);
+}
+
+.ops h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+}
+
+.ops ol {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+}
+
+.ops li + li {
+  margin-top: 0.25rem;
+}
+
+.reveal {
+  animation: rise-in 440ms ease both;
+}
+
+.reveal:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.reveal:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+@keyframes rise-in {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  textarea {
+    min-height: 13.5rem;
+  }
+
+  .container {
+    margin-top: 1.5rem;
+  }
+}
+
