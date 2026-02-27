@@ -12,3 +12,7 @@ test("generated tool returns output", () => {
 test("generated tool rejects empty input", () => {
   assert.throws(() => runTool("   ", "encode"), /empty|invalid/i);
 });
+
+test("generated tool rejects invalid decode input", () => {
+  assert.throws(() => runTool("%%%bad%%%", "decode"), /valid|invalid/i);
+});

@@ -91,3 +91,15 @@ button.ghost {
   color: var(--muted);
   font-family: "JetBrains Mono", monospace;
 }
+
+@media (max-width: 720px) {
+  .tool-shell {
+    width: 94%;
+    margin: 1rem auto;
+    padding: 1rem;
+  }
+
+  textarea {
+    min-height: 10rem;
+  }
+}

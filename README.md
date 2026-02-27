@@ -72,3 +72,7 @@ The Product Owner idea generator uses:
 - Existing repo context to avoid duplicate ideas
 
 This keeps idea generation consistent while still producing one new concept daily.
+
+## Generated Tools
+
+- [[Product Owner] Daily Tool Idea 2026-02-27](site/tools/productownerdailytoolidea2026-02-27-1/) - Convert UTF-8 text between Base64 and URL-safe Base64 formats.
