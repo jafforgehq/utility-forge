@@ -24,6 +24,10 @@ const deployMetricEl = document.querySelector("#deployMetric");
 const pipelineNodeEls = Array.from(document.querySelectorAll(".pipeline-node"));
 const activityFeedEl = document.querySelector("#activityFeed");
 const activityStatusEl = document.querySelector("#activityStatus");
+let currentActivityItems = [];
+let activityClockTimer = null;
+let activityRefreshTimer = null;
+let isCatalogLoading = false;
 
 const MIN_UPCOMING_TILES = 3;
 const FALLBACK_PLANNED_TOOLS = [
@@ -245,6 +249,37 @@ function formatTimeAgo(value) {
   return `${absDays}d ago`;
 }
 
+function formatAbsoluteTime(value) {
+  const timeMs = dateToMs(value);
+  if (!timeMs) {
+    return "";
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(timeMs));
+}
+
+function formatActivityMeta(item) {
+  return `${item.source} • ${formatTimeAgo(item.when)}`;
+}
+
+function refreshActivityMetaTimes() {
+  if (!activityFeedEl || !currentActivityItems.length) {
+    return;
+  }
+
+  const metaEls = activityFeedEl.querySelectorAll(".activity-meta[data-activity-index]");
+  for (const metaEl of metaEls) {
+    const index = Number(metaEl.dataset.activityIndex);
+    const item = currentActivityItems[index];
+    if (!item) {
+      continue;
+    }
+    metaEl.textContent = formatActivityMeta(item);
+  }
+}
+
 function activityFromIssue(issue) {
   const labels = getLabelNames(issue);
   const toolName = normalizeTitle(extractToolNameFromIssue(issue.body, issue.title), "");
@@ -344,14 +379,15 @@ function renderActivityFeed(items) {
     return;
   }
 
+  currentActivityItems = Array.isArray(items) ? items : [];
   activityFeedEl.innerHTML = "";
-  if (!items.length) {
+  if (!currentActivityItems.length) {
     activityFeedEl.innerHTML =
       '<article class="activity-item activity-item-empty">No recent activity available.</article>';
     return;
   }
 
-  for (const [index, item] of items.entries()) {
+  for (const [index, item] of currentActivityItems.entries()) {
     const article = document.createElement("article");
     article.className = `activity-item activity-${item.tone}`;
     article.style.setProperty("--activity-delay", `${index * 55}ms`);
@@ -361,7 +397,12 @@ function renderActivityFeed(items) {
 
     const meta = document.createElement("p");
     meta.className = "activity-meta";
-    meta.textContent = `${item.source} • ${formatTimeAgo(item.when)}`;
+    meta.dataset.activityIndex = String(index);
+    meta.textContent = formatActivityMeta(item);
+    const absolute = formatAbsoluteTime(item.when);
+    if (absolute) {
+      meta.title = absolute;
+    }
     body.appendChild(meta);
 
     const title = document.createElement("h3");
@@ -384,6 +425,12 @@ function renderActivityFeed(items) {
     article.appendChild(body);
     activityFeedEl.appendChild(article);
   }
+
+  if (!activityClockTimer) {
+    activityClockTimer = window.setInterval(refreshActivityMetaTimes, 30000);
+  }
+
+  refreshActivityMetaTimes();
 }
 
 function buildTile(tool) {
@@ -520,6 +567,11 @@ async function loadToolCatalog() {
   if (!liveToolTilesEl || !plannedToolTilesEl || !catalogStatsEl) {
     return;
   }
+  if (isCatalogLoading) {
+    return;
+  }
+
+  isCatalogLoading = true;
 
   try {
     const repo = inferRepoFromLocation();
@@ -694,8 +746,13 @@ async function loadToolCatalog() {
     if (activityStatusEl) {
       activityStatusEl.textContent = "Activity sync unavailable";
     }
+  } finally {
+    isCatalogLoading = false;
   }
 }
 
 startPipelineAnimation();
 loadToolCatalog();
+if (!activityRefreshTimer) {
+  activityRefreshTimer = window.setInterval(loadToolCatalog, 120000);
+}
