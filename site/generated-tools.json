@@ -12,5 +12,12 @@
     "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
     "path": "./tools/convert-curl-command-fetch-snippet-gener-3/",
     "source_issue": 3
+  },
+  {
+    "slug": "http-status-code-lookup-assistant-6",
+    "title": "HTTP status code lookup assistant",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/http-status-code-lookup-assistant-6/",
+    "source_issue": 6
   }
 ]
