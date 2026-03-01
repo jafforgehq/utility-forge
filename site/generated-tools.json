@@ -14,6 +14,13 @@
     "source_issue": 3
   },
   {
+    "slug": "jwt-payload-decoder-and-expiry-checker-5",
+    "title": "JWT payload decoder and expiry checker",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/jwt-payload-decoder-and-expiry-checker-5/",
+    "source_issue": 5
+  },
+  {
     "slug": "http-status-code-lookup-assistant-6",
     "title": "HTTP status code lookup assistant",
     "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",

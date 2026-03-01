@@ -22,6 +22,8 @@ const seMetricEl = document.querySelector("#seMetric");
 const qaMetricEl = document.querySelector("#qaMetric");
 const deployMetricEl = document.querySelector("#deployMetric");
 const pipelineNodeEls = Array.from(document.querySelectorAll(".pipeline-node"));
+const activityFeedEl = document.querySelector("#activityFeed");
+const activityStatusEl = document.querySelector("#activityStatus");
 
 const MIN_UPCOMING_TILES = 3;
 const FALLBACK_PLANNED_TOOLS = [
@@ -115,6 +117,12 @@ function extractToolNameFromIssue(body, fallback = "Upcoming Tool") {
   return name || fallback;
 }
 
+function getLabelNames(item) {
+  return (Array.isArray(item.labels) ? item.labels : [])
+    .map((label) => (typeof label === "string" ? label : label.name))
+    .filter(Boolean);
+}
+
 function normalizeTitle(title, summary) {
   let normalized = String(title || "").trim();
   while (/^\[[^\]]+\]\s*/.test(normalized)) {
@@ -204,6 +212,177 @@ function addDaysIso(baseDateIso, daysToAdd) {
   }
   base.setUTCDate(base.getUTCDate() + daysToAdd);
   return base.toISOString().slice(0, 10);
+}
+
+function dateToMs(value) {
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function formatTimeAgo(value) {
+  const timeMs = dateToMs(value);
+  if (!timeMs) {
+    return "just now";
+  }
+
+  const diffMs = Date.now() - timeMs;
+  const absSeconds = Math.floor(Math.abs(diffMs) / 1000);
+  if (absSeconds < 60) {
+    return "just now";
+  }
+
+  const absMinutes = Math.floor(absSeconds / 60);
+  if (absMinutes < 60) {
+    return `${absMinutes}m ago`;
+  }
+
+  const absHours = Math.floor(absMinutes / 60);
+  if (absHours < 24) {
+    return `${absHours}h ago`;
+  }
+
+  const absDays = Math.floor(absHours / 24);
+  return `${absDays}d ago`;
+}
+
+function activityFromIssue(issue) {
+  const labels = getLabelNames(issue);
+  const toolName = normalizeTitle(extractToolNameFromIssue(issue.body, issue.title), "");
+  let title = `Issue updated: ${toolName}`;
+  let tone = "info";
+
+  if (issue.state === "closed" || labels.includes("status:done")) {
+    title = `Tool shipped: ${toolName}`;
+    tone = "success";
+  } else if (labels.includes("status:qa-review")) {
+    title = `QA reviewing: ${toolName}`;
+    tone = "warn";
+  } else if (labels.includes("status:in-progress")) {
+    title = `Engineering in progress: ${toolName}`;
+    tone = "info";
+  } else if (labels.includes("status:ready-for-engineering")) {
+    title = `Idea queued: ${toolName}`;
+    tone = "info";
+  }
+
+  const when = issue.updated_at || issue.created_at;
+  return {
+    id: `issue-${issue.id || issue.number}`,
+    title,
+    detail: `Issue #${issue.number}`,
+    source: "Issue",
+    tone,
+    url: issue.html_url || "",
+    when,
+    timeMs: dateToMs(when)
+  };
+}
+
+function activityFromPull(pr) {
+  const name = normalizeTitle(pr.title, "");
+  let title = `PR updated: ${name}`;
+  let tone = "info";
+  let when = pr.updated_at || pr.created_at;
+
+  if (pr.merged_at) {
+    title = `PR merged: ${name}`;
+    tone = "success";
+    when = pr.merged_at;
+  } else if (pr.state === "open") {
+    title = `PR opened: ${name}`;
+    tone = "info";
+    when = pr.created_at || when;
+  } else if (pr.state === "closed") {
+    title = `PR closed: ${name}`;
+    tone = "warn";
+  }
+
+  return {
+    id: `pr-${pr.id || pr.number}`,
+    title,
+    detail: `PR #${pr.number}`,
+    source: "Pull Request",
+    tone,
+    url: pr.html_url || "",
+    when,
+    timeMs: dateToMs(when)
+  };
+}
+
+function activityFromWorkflowRun(run, workflowLabel) {
+  let title = `${workflowLabel} run started`;
+  let tone = "info";
+
+  if (run.status === "completed") {
+    if (run.conclusion === "success") {
+      title = `${workflowLabel} run succeeded`;
+      tone = "success";
+    } else if (run.conclusion === "skipped") {
+      title = `${workflowLabel} run skipped`;
+      tone = "warn";
+    } else {
+      title = `${workflowLabel} run failed`;
+      tone = "error";
+    }
+  }
+
+  const when = run.updated_at || run.created_at;
+  return {
+    id: `${workflowLabel}-${run.id}`,
+    title,
+    detail: `Trigger: ${run.event || "unknown"}`,
+    source: "Workflow",
+    tone,
+    url: run.html_url || "",
+    when,
+    timeMs: dateToMs(when)
+  };
+}
+
+function renderActivityFeed(items) {
+  if (!activityFeedEl) {
+    return;
+  }
+
+  activityFeedEl.innerHTML = "";
+  if (!items.length) {
+    activityFeedEl.innerHTML =
+      '<article class="activity-item activity-item-empty">No recent activity available.</article>';
+    return;
+  }
+
+  for (const item of items) {
+    const article = document.createElement("article");
+    article.className = `activity-item activity-${item.tone}`;
+
+    const body = document.createElement("div");
+    body.className = "activity-body";
+
+    const meta = document.createElement("p");
+    meta.className = "activity-meta";
+    meta.textContent = `${item.source} • ${formatTimeAgo(item.when)}`;
+    body.appendChild(meta);
+
+    const title = document.createElement("h3");
+    if (item.url) {
+      const link = document.createElement("a");
+      link.href = item.url;
+      link.textContent = item.title;
+      link.rel = "noopener noreferrer";
+      title.appendChild(link);
+    } else {
+      title.textContent = item.title;
+    }
+    body.appendChild(title);
+
+    const detail = document.createElement("p");
+    detail.className = "activity-detail";
+    detail.textContent = item.detail;
+    body.appendChild(detail);
+
+    article.appendChild(body);
+    activityFeedEl.appendChild(article);
+  }
 }
 
 function buildTile(tool) {
@@ -343,10 +522,41 @@ async function loadToolCatalog() {
 
   try {
     const repo = inferRepoFromLocation();
-    const [generatedResp, upcomingResp] = await Promise.all([
+    const [
+      generatedResp,
+      issuesResp,
+      pullsResp,
+      seRunsResp,
+      qaRunsResp,
+      pagesRunsResp
+    ] = await Promise.all([
       fetch("./generated-tools.json", { cache: "no-store" }),
       fetch(
-        `https://api.github.com/repos/${repo.owner}/${repo.repo}/issues?state=open&labels=type:tool&per_page=100`,
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/issues?state=all&labels=type:tool&sort=updated&direction=desc&per_page=100`,
+        {
+          headers: { Accept: "application/vnd.github+json" }
+        }
+      ),
+      fetch(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/pulls?state=all&sort=updated&direction=desc&per_page=40`,
+        {
+          headers: { Accept: "application/vnd.github+json" }
+        }
+      ),
+      fetch(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/actions/workflows/software-engineer.yml/runs?per_page=8`,
+        {
+          headers: { Accept: "application/vnd.github+json" }
+        }
+      ),
+      fetch(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/actions/workflows/qa-review.yml/runs?per_page=8`,
+        {
+          headers: { Accept: "application/vnd.github+json" }
+        }
+      ),
+      fetch(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/actions/workflows/pages.yml/runs?per_page=8`,
         {
           headers: { Accept: "application/vnd.github+json" }
         }
@@ -358,7 +568,11 @@ async function loadToolCatalog() {
     }
 
     const generated = await generatedResp.json();
-    const issues = upcomingResp.ok ? await upcomingResp.json() : [];
+    const allToolIssues = issuesResp.ok ? await issuesResp.json() : [];
+    const pulls = pullsResp.ok ? await pullsResp.json() : [];
+    const seRuns = seRunsResp.ok ? (await seRunsResp.json()).workflow_runs || [] : [];
+    const qaRuns = qaRunsResp.ok ? (await qaRunsResp.json()).workflow_runs || [] : [];
+    const pagesRuns = pagesRunsResp.ok ? (await pagesRunsResp.json()).workflow_runs || [] : [];
     const todayIso = new Date().toISOString().slice(0, 10);
 
     const liveTools = [
@@ -383,15 +597,16 @@ async function loadToolCatalog() {
         : [])
     ];
 
-    const upcomingToolsFromIssues = Array.isArray(issues)
-      ? issues
+    const upcomingToolsFromIssues = Array.isArray(allToolIssues)
+      ? allToolIssues
+          .filter((item) => item.state === "open")
           .filter((item) => !item.pull_request)
           .filter((item) => {
-            const labels = item.labels.map((label) => label.name);
+            const labels = getLabelNames(item);
             return !labels.includes("status:done");
           })
           .map((item) => {
-            const labels = item.labels.map((label) => label.name);
+            const labels = getLabelNames(item);
             let state = "Upcoming";
             if (labels.includes("status:in-progress")) {
               state = "In Progress";
@@ -452,11 +667,32 @@ async function loadToolCatalog() {
     renderTileList(liveToolTilesEl, liveTools, "No live tools found.");
     renderTileList(plannedToolTilesEl, upcomingTools, "No planned tools found.");
     updatePipelineStats(liveTools, upcomingTools);
+
+    const activityItems = [
+      ...(Array.isArray(allToolIssues)
+        ? allToolIssues.filter((item) => !item.pull_request).slice(0, 8).map(activityFromIssue)
+        : []),
+      ...(Array.isArray(pulls) ? pulls.slice(0, 8).map(activityFromPull) : []),
+      ...seRuns.slice(0, 5).map((run) => activityFromWorkflowRun(run, "Software Engineer")),
+      ...qaRuns.slice(0, 5).map((run) => activityFromWorkflowRun(run, "QA")),
+      ...pagesRuns.slice(0, 5).map((run) => activityFromWorkflowRun(run, "Deploy"))
+    ]
+      .sort((a, b) => b.timeMs - a.timeMs)
+      .slice(0, 12);
+
+    renderActivityFeed(activityItems);
+    if (activityStatusEl) {
+      activityStatusEl.textContent = "Live GitHub activity";
+    }
   } catch {
     catalogStatsEl.textContent = "Could not load catalog stats.";
     renderTileList(liveToolTilesEl, [], "Could not load live tools.");
     renderTileList(plannedToolTilesEl, [], "Could not load planned tools.");
     updatePipelineStats([], []);
+    renderActivityFeed([]);
+    if (activityStatusEl) {
+      activityStatusEl.textContent = "Activity sync unavailable";
+    }
   }
 }
 
