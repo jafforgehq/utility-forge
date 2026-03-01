@@ -323,6 +323,53 @@ button.ghost {
   margin-right: 0.2rem;
 }
 
+.health-grid {
+  margin-top: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.health-card {
+  position: relative;
+  padding: 0.72rem 0.78rem;
+  border-radius: 11px;
+  border: 1px solid rgba(164, 210, 228, 0.2);
+  background: linear-gradient(160deg, rgba(16, 30, 39, 0.9), rgba(7, 13, 18, 0.86));
+}
+
+.health-label {
+  margin: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.69rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.health-value {
+  margin: 0.4rem 0 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  color: #9fe3ff;
+}
+
+.health-value[data-tone="success"] {
+  color: #84ecaa;
+}
+
+.health-value[data-tone="warn"] {
+  color: #f3ce72;
+}
+
+.health-value[data-tone="error"] {
+  color: #ff9f86;
+}
+
+.health-value[data-tone="info"] {
+  color: #9fe3ff;
+}
+
 @keyframes beam-scan {
   0% {
     transform: translateX(-72%);
@@ -668,6 +715,10 @@ button.ghost {
   }
 
   .pipeline-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .health-grid {
     grid-template-columns: 1fr;
   }
 

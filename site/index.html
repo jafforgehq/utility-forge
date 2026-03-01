@@ -106,6 +106,35 @@
         </div>
       </section>
 
+      <section class="ops reveal health" aria-labelledby="health-title">
+        <div class="activity-head">
+          <h2 id="health-title">Pipeline Health Snapshot</h2>
+          <p id="healthSync" class="activity-status">Syncing workflow health...</p>
+        </div>
+        <div class="health-grid">
+          <article class="health-card">
+            <p class="health-label">Last PO run</p>
+            <p id="healthPoRun" class="health-value">Loading...</p>
+          </article>
+          <article class="health-card">
+            <p class="health-label">Last SE run</p>
+            <p id="healthSeRun" class="health-value">Loading...</p>
+          </article>
+          <article class="health-card">
+            <p class="health-label">Last QA run</p>
+            <p id="healthQaRun" class="health-value">Loading...</p>
+          </article>
+          <article class="health-card">
+            <p class="health-label">Watchdog status</p>
+            <p id="healthWatchdogRun" class="health-value">Loading...</p>
+          </article>
+          <article class="health-card">
+            <p class="health-label">Next expected tool date</p>
+            <p id="healthNextToolDate" class="health-value">Loading...</p>
+          </article>
+        </div>
+      </section>
+
       <section class="ops reveal activity" aria-labelledby="activity-title">
         <div class="activity-head">
           <h2 id="activity-title">Recent Activity Flow</h2>

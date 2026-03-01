@@ -24,6 +24,12 @@ const deployMetricEl = document.querySelector("#deployMetric");
 const pipelineNodeEls = Array.from(document.querySelectorAll(".pipeline-node"));
 const activityFeedEl = document.querySelector("#activityFeed");
 const activityStatusEl = document.querySelector("#activityStatus");
+const healthSyncEl = document.querySelector("#healthSync");
+const healthPoRunEl = document.querySelector("#healthPoRun");
+const healthSeRunEl = document.querySelector("#healthSeRun");
+const healthQaRunEl = document.querySelector("#healthQaRun");
+const healthWatchdogRunEl = document.querySelector("#healthWatchdogRun");
+const healthNextToolDateEl = document.querySelector("#healthNextToolDate");
 let currentActivityItems = [];
 let activityClockTimer = null;
 let activityRefreshTimer = null;
@@ -247,6 +253,67 @@ function formatTimeAgo(value) {
 
   const absDays = Math.floor(absHours / 24);
   return `${absDays}d ago`;
+}
+
+function workflowRunSummary(run) {
+  if (!run) {
+    return { text: "No runs yet", tone: "warn" };
+  }
+
+  const timeText = formatTimeAgo(run.updated_at || run.created_at);
+  if (run.status !== "completed") {
+    const status = String(run.status || "running").replace(/_/g, " ");
+    return { text: `${status} • ${timeText}`, tone: "info" };
+  }
+
+  if (run.conclusion === "success") {
+    return { text: `Success • ${timeText}`, tone: "success" };
+  }
+
+  if (run.conclusion === "skipped" || run.conclusion === "neutral") {
+    return { text: `Skipped • ${timeText}`, tone: "warn" };
+  }
+
+  return { text: `Failed • ${timeText}`, tone: "error" };
+}
+
+function setHealthValue(targetEl, summary) {
+  if (!targetEl) {
+    return;
+  }
+  targetEl.textContent = summary.text;
+  targetEl.dataset.tone = summary.tone || "info";
+}
+
+function updateHealthSnapshot(payload) {
+  if (
+    !healthPoRunEl ||
+    !healthSeRunEl ||
+    !healthQaRunEl ||
+    !healthWatchdogRunEl ||
+    !healthNextToolDateEl
+  ) {
+    return;
+  }
+
+  setHealthValue(healthPoRunEl, workflowRunSummary(payload.poRun));
+  setHealthValue(healthSeRunEl, workflowRunSummary(payload.seRun));
+  setHealthValue(healthQaRunEl, workflowRunSummary(payload.qaRun));
+  setHealthValue(healthWatchdogRunEl, workflowRunSummary(payload.watchdogRun));
+
+  const nextIso = payload.nextLaunchIso || "";
+  if (nextIso) {
+    const countdown = formatCountdown(nextIso);
+    healthNextToolDateEl.textContent = `${formatDate(nextIso)} (${countdown})`;
+    healthNextToolDateEl.dataset.tone = "info";
+  } else {
+    healthNextToolDateEl.textContent = "TBD";
+    healthNextToolDateEl.dataset.tone = "warn";
+  }
+
+  if (healthSyncEl) {
+    healthSyncEl.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
+  }
 }
 
 function formatAbsoluteTime(value) {
@@ -579,8 +646,10 @@ async function loadToolCatalog() {
       generatedResp,
       issuesResp,
       pullsResp,
+      poRunsResp,
       seRunsResp,
       qaRunsResp,
+      watchdogRunsResp,
       pagesRunsResp
     ] = await Promise.all([
       fetch("./generated-tools.json", { cache: "no-store" }),
@@ -597,6 +666,12 @@ async function loadToolCatalog() {
         }
       ),
       fetch(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/actions/workflows/daily-product-owner.yml/runs?per_page=8`,
+        {
+          headers: { Accept: "application/vnd.github+json" }
+        }
+      ),
+      fetch(
         `https://api.github.com/repos/${repo.owner}/${repo.repo}/actions/workflows/software-engineer.yml/runs?per_page=8`,
         {
           headers: { Accept: "application/vnd.github+json" }
@@ -604,6 +679,12 @@ async function loadToolCatalog() {
       ),
       fetch(
         `https://api.github.com/repos/${repo.owner}/${repo.repo}/actions/workflows/qa-review.yml/runs?per_page=8`,
+        {
+          headers: { Accept: "application/vnd.github+json" }
+        }
+      ),
+      fetch(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/actions/workflows/pipeline-watchdog.yml/runs?per_page=8`,
         {
           headers: { Accept: "application/vnd.github+json" }
         }
@@ -623,8 +704,10 @@ async function loadToolCatalog() {
     const generated = await generatedResp.json();
     const allToolIssues = issuesResp.ok ? await issuesResp.json() : [];
     const pulls = pullsResp.ok ? await pullsResp.json() : [];
+    const poRuns = poRunsResp.ok ? (await poRunsResp.json()).workflow_runs || [] : [];
     const seRuns = seRunsResp.ok ? (await seRunsResp.json()).workflow_runs || [] : [];
     const qaRuns = qaRunsResp.ok ? (await qaRunsResp.json()).workflow_runs || [] : [];
+    const watchdogRuns = watchdogRunsResp.ok ? (await watchdogRunsResp.json()).workflow_runs || [] : [];
     const pagesRuns = pagesRunsResp.ok ? (await pagesRunsResp.json()).workflow_runs || [] : [];
     const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -720,14 +803,23 @@ async function loadToolCatalog() {
     renderTileList(liveToolTilesEl, liveTools, "No live tools found.");
     renderTileList(plannedToolTilesEl, upcomingTools, "No planned tools found.");
     updatePipelineStats(liveTools, upcomingTools);
+    updateHealthSnapshot({
+      poRun: poRuns[0] || null,
+      seRun: seRuns[0] || null,
+      qaRun: qaRuns[0] || null,
+      watchdogRun: watchdogRuns[0] || null,
+      nextLaunchIso: (upcomingTools.find((tool) => tool.launchIso) || {}).launchIso || addDaysIso(todayIso, 1)
+    });
 
     const activityItems = [
       ...(Array.isArray(allToolIssues)
         ? allToolIssues.filter((item) => !item.pull_request).slice(0, 8).map(activityFromIssue)
         : []),
       ...(Array.isArray(pulls) ? pulls.slice(0, 8).map(activityFromPull) : []),
+      ...poRuns.slice(0, 3).map((run) => activityFromWorkflowRun(run, "Product Owner")),
       ...seRuns.slice(0, 5).map((run) => activityFromWorkflowRun(run, "Software Engineer")),
       ...qaRuns.slice(0, 5).map((run) => activityFromWorkflowRun(run, "QA")),
+      ...watchdogRuns.slice(0, 3).map((run) => activityFromWorkflowRun(run, "Watchdog")),
       ...pagesRuns.slice(0, 5).map((run) => activityFromWorkflowRun(run, "Deploy"))
     ]
       .sort((a, b) => b.timeMs - a.timeMs)
@@ -742,9 +834,19 @@ async function loadToolCatalog() {
     renderTileList(liveToolTilesEl, [], "Could not load live tools.");
     renderTileList(plannedToolTilesEl, [], "Could not load planned tools.");
     updatePipelineStats([], []);
+    updateHealthSnapshot({
+      poRun: null,
+      seRun: null,
+      qaRun: null,
+      watchdogRun: null,
+      nextLaunchIso: ""
+    });
     renderActivityFeed([]);
     if (activityStatusEl) {
       activityStatusEl.textContent = "Activity sync unavailable";
+    }
+    if (healthSyncEl) {
+      healthSyncEl.textContent = "Health sync unavailable";
     }
   } finally {
     isCatalogLoading = false;
