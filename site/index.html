@@ -62,14 +62,45 @@
         </div>
       </section>
 
-      <section class="ops reveal" aria-labelledby="ops-title">
-        <h2 id="ops-title">Autonomous Daily Pipeline</h2>
-        <ol>
-          <li>Product Owner creates one idea issue daily (AI-assisted).</li>
-          <li>Software Engineer implements and opens PR.</li>
-          <li>QA verifies behavior + tests before merge.</li>
-          <li>Merge deploys to GitHub Pages automatically.</li>
-        </ol>
+      <section class="ops reveal pipeline" aria-labelledby="ops-title">
+        <div class="pipeline-head">
+          <h2 id="ops-title">Autonomous Daily Pipeline</h2>
+          <p id="pipelinePulseText" class="pipeline-pulse">Booting pipeline...</p>
+        </div>
+
+        <div class="pipeline-track" aria-hidden="true">
+          <div class="pipeline-beam"></div>
+
+          <article class="pipeline-node" data-stage="po">
+            <span class="pipeline-role">Product Owner</span>
+            <h3>Finds Tool Idea</h3>
+            <p id="poMetric">1 idea/day</p>
+          </article>
+
+          <article class="pipeline-node" data-stage="se">
+            <span class="pipeline-role">Software Engineer</span>
+            <h3>Builds & Opens PR</h3>
+            <p id="seMetric">Queue: 0</p>
+          </article>
+
+          <article class="pipeline-node" data-stage="qa">
+            <span class="pipeline-role">QA</span>
+            <h3>Runs Tests & Criteria</h3>
+            <p id="qaMetric">In QA: 0</p>
+          </article>
+
+          <article class="pipeline-node" data-stage="deploy">
+            <span class="pipeline-role">Deploy</span>
+            <h3>Publishes to Pages</h3>
+            <p id="deployMetric">Live tools: 0</p>
+          </article>
+        </div>
+
+        <div class="pipeline-stats">
+          <p><strong id="pipelineLiveCount">0</strong> tools live</p>
+          <p><strong id="pipelinePlannedCount">0</strong> tools in roadmap</p>
+          <p id="nextLaunchMetric">Next launch: TBD</p>
+        </div>
       </section>
 
       <section class="ops reveal catalog" aria-labelledby="catalog-title">

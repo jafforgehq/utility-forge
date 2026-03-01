@@ -13,6 +13,15 @@ const swapBtn = document.querySelector("#swapBtn");
 const liveToolTilesEl = document.querySelector("#liveToolTiles");
 const plannedToolTilesEl = document.querySelector("#plannedToolTiles");
 const catalogStatsEl = document.querySelector("#catalogStats");
+const pipelinePulseTextEl = document.querySelector("#pipelinePulseText");
+const pipelineLiveCountEl = document.querySelector("#pipelineLiveCount");
+const pipelinePlannedCountEl = document.querySelector("#pipelinePlannedCount");
+const nextLaunchMetricEl = document.querySelector("#nextLaunchMetric");
+const poMetricEl = document.querySelector("#poMetric");
+const seMetricEl = document.querySelector("#seMetric");
+const qaMetricEl = document.querySelector("#qaMetric");
+const deployMetricEl = document.querySelector("#deployMetric");
+const pipelineNodeEls = Array.from(document.querySelectorAll(".pipeline-node"));
 
 const MIN_UPCOMING_TILES = 3;
 const FALLBACK_PLANNED_TOOLS = [
@@ -261,6 +270,72 @@ function renderTileList(targetEl, tools, emptyMessage) {
   }
 }
 
+function updatePipelineStats(liveTools, upcomingTools) {
+  const liveCount = liveTools.length;
+  const plannedCount = upcomingTools.length;
+  const engineeringQueue = upcomingTools.filter(
+    (tool) => tool.status === "Ready" || tool.status === "In Progress"
+  ).length;
+  const qaQueue = upcomingTools.filter((tool) => tool.status === "QA Review").length;
+  const nextLaunch = upcomingTools.find((tool) => tool.launchIso);
+
+  if (pipelineLiveCountEl) {
+    pipelineLiveCountEl.textContent = String(liveCount);
+  }
+
+  if (pipelinePlannedCountEl) {
+    pipelinePlannedCountEl.textContent = String(plannedCount);
+  }
+
+  if (nextLaunchMetricEl) {
+    nextLaunchMetricEl.textContent = nextLaunch
+      ? `Next launch: ${formatDate(nextLaunch.launchIso)} (${formatCountdown(nextLaunch.launchIso)})`
+      : "Next launch: TBD";
+  }
+
+  if (poMetricEl) {
+    poMetricEl.textContent = "Rate: 1 idea/day";
+  }
+
+  if (seMetricEl) {
+    seMetricEl.textContent = `Queue: ${engineeringQueue}`;
+  }
+
+  if (qaMetricEl) {
+    qaMetricEl.textContent = `In QA: ${qaQueue}`;
+  }
+
+  if (deployMetricEl) {
+    deployMetricEl.textContent = `Live tools: ${liveCount}`;
+  }
+}
+
+function startPipelineAnimation() {
+  if (!pipelineNodeEls.length) {
+    return;
+  }
+
+  const stageMessages = [
+    "Product Owner drafting the next tool idea",
+    "Software Engineer generating implementation and PR",
+    "QA validating tests and acceptance criteria",
+    "Deploy publishing approved tools to GitHub Pages"
+  ];
+
+  let stageIndex = 0;
+  const tick = () => {
+    pipelineNodeEls.forEach((node) => node.classList.remove("is-active"));
+    pipelineNodeEls[stageIndex].classList.add("is-active");
+    if (pipelinePulseTextEl) {
+      pipelinePulseTextEl.textContent = stageMessages[stageIndex];
+    }
+    stageIndex = (stageIndex + 1) % pipelineNodeEls.length;
+  };
+
+  tick();
+  setInterval(tick, 2200);
+}
+
 async function loadToolCatalog() {
   if (!liveToolTilesEl || !plannedToolTilesEl || !catalogStatsEl) {
     return;
@@ -376,11 +451,14 @@ async function loadToolCatalog() {
     catalogStatsEl.textContent = `${liveTools.length} live tools | ${upcomingTools.length} planned tools`;
     renderTileList(liveToolTilesEl, liveTools, "No live tools found.");
     renderTileList(plannedToolTilesEl, upcomingTools, "No planned tools found.");
+    updatePipelineStats(liveTools, upcomingTools);
   } catch {
     catalogStatsEl.textContent = "Could not load catalog stats.";
     renderTileList(liveToolTilesEl, [], "Could not load live tools.");
     renderTileList(plannedToolTilesEl, [], "Could not load planned tools.");
+    updatePipelineStats([], []);
   }
 }
 
+startPipelineAnimation();
 loadToolCatalog();
