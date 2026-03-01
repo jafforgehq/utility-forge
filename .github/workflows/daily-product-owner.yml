@@ -35,7 +35,8 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const avaName = "Ava PO";
-            const avaAvatar = "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=AvaPO";
+            const avatarBase = `https://raw.githubusercontent.com/${owner}/${repo}/main/site/assets/avatars`;
+            const avaAvatar = `${avatarBase}/ava-ai.svg`;
             const now = new Date();
             const dateTag = now.toISOString().slice(0, 10);
             const aiCallLimit = Number(process.env.OPENAI_DAILY_CALL_LIMIT || "1");
@@ -415,7 +416,7 @@ jobs:
               repo,
               issue_number: createdIssue.data.number,
               body: [
-                `![${avaName}](${avaAvatar})`,
+                `<img src="${avaAvatar}" alt="${avaName}" width="30" height="30" />`,
                 `### ${avaName} Daily Standup (${dateTag})`,
                 "",
                 "**Yesterday**",

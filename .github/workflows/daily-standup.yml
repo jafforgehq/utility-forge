@@ -26,19 +26,20 @@ jobs:
             const now = new Date();
             const dateTag = now.toISOString().slice(0, 10);
             const title = `[Standup] ${dateTag}`;
+            const avatarBase = `https://raw.githubusercontent.com/${owner}/${repo}/main/site/assets/avatars`;
 
             const agents = {
               ava: {
                 name: "Ava PO",
-                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=AvaPO"
+                avatar: `${avatarBase}/ava-ai.svg`
               },
               eve: {
                 name: "Eve SE",
-                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE"
+                avatar: `${avatarBase}/eve-ai.svg`
               },
               nora: {
                 name: "Nora QA",
-                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA"
+                avatar: `${avatarBase}/nora-ai.svg`
               }
             };
 
@@ -70,7 +71,7 @@ jobs:
                 repo,
                 issue_number: issue.number,
                 body: [
-                  `![${agents.ava.name}](${agents.ava.avatar})`,
+                  `<img src="${agents.ava.avatar}" alt="${agents.ava.name}" width="30" height="30" />`,
                   "Standup window closed automatically. Please continue updates in today's standup thread.",
                   "",
                   `_${agents.ava.name}_`
@@ -146,7 +147,7 @@ jobs:
               repo,
               issue_number: issueNumber,
               body: [
-                `![${agents.ava.name}](${agents.ava.avatar})`,
+                `<img src="${agents.ava.avatar}" alt="${agents.ava.name}" width="30" height="30" />`,
                 `### ${agents.ava.name}`,
                 "",
                 "**Yesterday**",
@@ -167,7 +168,7 @@ jobs:
               repo,
               issue_number: issueNumber,
               body: [
-                `![${agents.eve.name}](${agents.eve.avatar})`,
+                `<img src="${agents.eve.avatar}" alt="${agents.eve.name}" width="30" height="30" />`,
                 `### ${agents.eve.name}`,
                 "",
                 "**Yesterday**",
@@ -188,7 +189,7 @@ jobs:
               repo,
               issue_number: issueNumber,
               body: [
-                `![${agents.nora.name}](${agents.nora.avatar})`,
+                `<img src="${agents.nora.avatar}" alt="${agents.nora.name}" width="30" height="30" />`,
                 `### ${agents.nora.name}`,
                 "",
                 "**Yesterday**",

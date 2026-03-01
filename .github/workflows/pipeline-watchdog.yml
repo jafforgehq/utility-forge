@@ -25,6 +25,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const now = Date.now();
+            const avatarBase = `https://raw.githubusercontent.com/${owner}/${repo}/main/site/assets/avatars`;
 
             const thresholds = {
               ready: 6,
@@ -34,15 +35,15 @@ jobs:
 
             const ava = {
               name: "Ava PO",
-              avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=AvaPO"
+              avatar: `${avatarBase}/ava-ai.svg`
             };
             const eve = {
               name: "Eve SE",
-              avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE"
+              avatar: `${avatarBase}/eve-ai.svg`
             };
             const nora = {
               name: "Nora QA",
-              avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA"
+              avatar: `${avatarBase}/nora-ai.svg`
             };
 
             const ageHours = (isoDate) => {
@@ -107,7 +108,7 @@ jobs:
                   repo,
                   issue_number: issue.number,
                   body: [
-                    `![${ava.name}](${ava.avatar})`,
+                    `<img src="${ava.avatar}" alt="${ava.name}" width="30" height="30" />`,
                     "Watchdog ping: issue sat in `ready-for-engineering` too long, so engineering dispatch was retriggered.",
                     `Idle time: ${idle.toFixed(1)}h`,
                     "",
@@ -133,7 +134,7 @@ jobs:
                   repo,
                   issue_number: issue.number,
                   body: [
-                    `![${eve.name}](${eve.avatar})`,
+                    `<img src="${eve.avatar}" alt="${eve.name}" width="30" height="30" />`,
                     "Watchdog ping: implementation appears stalled, so Software Engineer automation was retriggered.",
                     `Idle time: ${idle.toFixed(1)}h`,
                     "",
@@ -166,7 +167,7 @@ jobs:
                   repo,
                   issue_number: issue.number,
                   body: [
-                    `![${nora.name}](${nora.avatar})`,
+                    `<img src="${nora.avatar}" alt="${nora.name}" width="30" height="30" />`,
                     "Watchdog ping: issue stayed in QA queue too long, so QA review was retriggered.",
                     `Idle time: ${idle.toFixed(1)}h`,
                     "",

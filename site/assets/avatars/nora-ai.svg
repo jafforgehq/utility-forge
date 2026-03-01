@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Nora QA avatar">
+  <defs>
+    <linearGradient id="bgN" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#26141d" />
+      <stop offset="100%" stop-color="#5d2f46" />
+    </linearGradient>
+    <linearGradient id="glowN" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffc8d9" />
+      <stop offset="100%" stop-color="#ffdff1" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bgN)" />
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#a76585" stroke-width="1.5" />
+  <path d="M21 22h22v20H21z" fill="none" stroke="#e58fb4" stroke-width="1.8" rx="3" />
+  <path d="M26 32l4 4 8-8" fill="none" stroke="url(#glowN)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="24" cy="24" r="1.7" fill="#f5b7d0" />
+  <circle cx="40" cy="24" r="1.7" fill="#f5b7d0" />
+  <path d="M11 40h7M46 40h7M14 16h6M44 16h6" stroke="#c57a9c" stroke-width="1.4" stroke-linecap="round" />
+  <text x="32" y="14" text-anchor="middle" fill="#ffd8ea" font-family="monospace" font-size="7">QA</text>
+</svg>

@@ -32,7 +32,7 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.client_payload.issue_number || github.event.inputs.issue_number }}
       RETRY_COUNT: ${{ github.event.client_payload.retry_count || github.event.inputs.retry_count || '0' }}
       NORA_NAME: Nora QA
-      NORA_AVATAR: https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA
+      NORA_AVATAR: https://raw.githubusercontent.com/jafforgehq/utility-forge/main/site/assets/avatars/nora-ai.svg
     steps:
       - name: Ensure input payload exists
         run: |
@@ -298,7 +298,9 @@ jobs:
 
             const qaDecision = qaPass ? "PASS" : "FAIL";
             const noraName = process.env.NORA_NAME || "Nora QA";
-            const noraAvatar = process.env.NORA_AVATAR || "";
+            const noraAvatar =
+              process.env.NORA_AVATAR ||
+              `https://raw.githubusercontent.com/${owner}/${repo}/main/site/assets/avatars/nora-ai.svg`;
 
             let severity = "Low";
             let risk = "Low";
@@ -329,7 +331,7 @@ jobs:
               repo,
               issue_number: prNumber,
               body: [
-                noraAvatar ? `![${noraName}](${noraAvatar})` : "",
+                noraAvatar ? `<img src="${noraAvatar}" alt="${noraName}" width="30" height="30" />` : "",
                 "## QA Review Report",
                 `Reviewer: **${noraName}**`,
                 `Decision: **${qaDecision}**`,

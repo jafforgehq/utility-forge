@@ -12,19 +12,19 @@ const AGENTS = {
     id: "ava",
     name: "Ava PO",
     role: "Product Owner",
-    avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=AvaPO"
+    avatar: "./assets/avatars/ava-ai.svg"
   },
   eve: {
     id: "eve",
     name: "Eve SE",
     role: "Software Engineer",
-    avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE"
+    avatar: "./assets/avatars/eve-ai.svg"
   },
   nora: {
     id: "nora",
     name: "Nora QA",
     role: "Quality Assurance",
-    avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA"
+    avatar: "./assets/avatars/nora-ai.svg"
   }
 };
 

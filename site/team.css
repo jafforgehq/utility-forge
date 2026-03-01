@@ -149,11 +149,12 @@ body {
 }
 
 .agent-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 1px solid rgba(158, 207, 226, 0.4);
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid rgba(158, 207, 226, 0.48);
   background: rgba(7, 14, 18, 0.84);
+  box-shadow: 0 0 0 1px rgba(98, 212, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 .agent-name {

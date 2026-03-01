@@ -38,7 +38,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL || 'gpt-4o-mini' }}
       EVE_NAME: Eve SE
-      EVE_AVATAR: https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE
+      EVE_AVATAR: https://raw.githubusercontent.com/jafforgehq/utility-forge/main/site/assets/avatars/eve-ai.svg
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -208,7 +208,9 @@ jobs:
             const toolName = process.env.TOOL_NAME || "this tool";
             const issueBody = process.env.ISSUE_BODY || "";
             const eveName = process.env.EVE_NAME || "Eve SE";
-            const eveAvatar = process.env.EVE_AVATAR || "";
+            const eveAvatar =
+              process.env.EVE_AVATAR ||
+              `https://raw.githubusercontent.com/${owner}/${repo}/main/site/assets/avatars/eve-ai.svg`;
 
             const acceptanceSection = issueBody.match(
               /## Acceptance Criteria[\s\S]*?(?:\n## |\n---|$)/i
@@ -225,7 +227,7 @@ jobs:
               repo,
               issue_number: issueNumber,
               body: [
-                eveAvatar ? `![${eveName}](${eveAvatar})` : "",
+                eveAvatar ? `<img src="${eveAvatar}" alt="${eveName}" width="30" height="30" />` : "",
                 `### ${eveName} Implementation Plan`,
                 "",
                 `Tool target: **${toolName}**`,
@@ -365,7 +367,7 @@ jobs:
               repo,
               issue_number: issueNumber,
               body: [
-                `![${process.env.EVE_NAME}](${process.env.EVE_AVATAR})`,
+                `<img src="${process.env.EVE_AVATAR}" alt="${process.env.EVE_NAME}" width="30" height="30" />`,
                 `### ${process.env.EVE_NAME} Handoff`,
                 `- Opened PR #${pr.number} for this issue.`,
                 "- Code + tests are ready for QA validation.",
