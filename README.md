@@ -32,9 +32,10 @@ Workflow: `.github/workflows/daily-product-owner.yml`
 
 What it does:
 - Runs every day.
-- Uses OpenAI API to generate one fresh tool idea.
+- Uses OpenAI API to generate three candidate ideas and selects one with fixed internal scoring.
 - Creates a GitHub issue titled with the tool name and launch date (signed by **Ava PO**).
 - Adds PO scorecard context (`Value`, `Effort`, `Confidence`, `Why now`).
+- Adds selection notes so the chosen idea is transparent.
 - Starts a standup-style issue comment thread (`Yesterday`, `Today`, `Blockers`).
 - Enforces guardrails:
   - Max one daily issue per date tag
@@ -67,11 +68,13 @@ What it does:
 - Triggered by Software Engineer handoff dispatch.
 - Waits 15 minutes before running QA checks (hard delay gate).
 - Runs tests plus acceptance-criteria matching, posts a structured QA report from **Nora QA** (`Severity`, `Risk`, `Recommendation`), auto-merges passing PRs, and closes linked issues.
+- Auto-retries QA once when tests/criteria pass but merge/deploy fails for operational reasons.
 
 ## Team Ritual Workflows
 
-- Daily Standup (`.github/workflows/daily-standup.yml`): opens a standup issue with role updates from Ava PO, Eve SE, and Nora QA.
-- Weekly Retro (`.github/workflows/weekly-retro.yml`): opens a Friday retro issue with wins/failures/action items and team reflections.
+- Daily Standup (`.github/workflows/daily-standup.yml`): opens a standup issue with role updates from Ava PO, Eve SE, and Nora QA, and auto-closes the previous open standup thread.
+- Weekly Retro (`.github/workflows/weekly-retro.yml`): opens a Friday retro issue with wins/failures/action items and team reflections, and auto-closes older open retro threads.
+- Pipeline Watchdog (`.github/workflows/pipeline-watchdog.yml`): runs hourly to retrigger stuck `ready`, `in-progress`, and `qa-review` items.
 
 ## Role Operating Model
 

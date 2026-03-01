@@ -75,6 +75,29 @@ jobs:
               per_page: 100
             });
 
+            for (const issue of existing.data) {
+              if (issue.pull_request) continue;
+              if (issue.title === title) continue;
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: [
+                  `![${agents.ava.name}](${agents.ava.avatar})`,
+                  "Retro window closed automatically. Action items should be tracked in the latest retro issue.",
+                  "",
+                  `_${agents.ava.name}_`
+                ].join("\n")
+              });
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                state: "closed",
+                state_reason: "completed"
+              });
+            }
+
             if (existing.data.some((issue) => issue.title === title)) {
               core.info(`Retro issue already exists for ${weekStartTag}-${weekEndTag}.`);
               return;

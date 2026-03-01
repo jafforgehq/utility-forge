@@ -8,6 +8,7 @@ Ship one new developer utility every day with quality gates.
 
 ## Product Owner
 - Generates one tool idea per day.
+- Generates 3 candidates and selects 1 with fixed internal scoring + duplicate checks.
 - Creates issue with value statement, scope, and acceptance criteria.
 - Labels issue for engineering handoff.
 
@@ -41,13 +42,17 @@ Ship one new developer utility every day with quality gates.
    - Error handling
    - Test coverage for core logic
 4. On QA pass, PR auto-merges and linked issue auto-closes.
-5. Merge to `main` triggers GitHub Pages deployment.
+5. If queue items stall, watchdog automation re-dispatches the next role automatically.
+6. Merge to `main` triggers GitHub Pages deployment.
 
 ## Automation Workflows
 
 - `.github/workflows/daily-product-owner.yml`
 - `.github/workflows/software-engineer.yml`
 - `.github/workflows/qa-review.yml`
+- `.github/workflows/daily-standup.yml`
+- `.github/workflows/weekly-retro.yml`
+- `.github/workflows/pipeline-watchdog.yml`
 
 ## Definition Of Done (Per Tool)
 

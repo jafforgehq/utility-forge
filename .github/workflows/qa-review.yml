@@ -13,6 +13,10 @@ on:
         description: "Issue number linked to the PR"
         required: false
         type: string
+      retry_count:
+        description: "Internal retry counter"
+        required: false
+        type: string
 
 permissions:
   actions: write
@@ -26,6 +30,7 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.client_payload.pr_number || github.event.inputs.pr_number }}
       ISSUE_NUMBER: ${{ github.event.client_payload.issue_number || github.event.inputs.issue_number }}
+      RETRY_COUNT: ${{ github.event.client_payload.retry_count || github.event.inputs.retry_count || '0' }}
       NORA_NAME: Nora QA
       NORA_AVATAR: https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA
     steps:
@@ -76,6 +81,7 @@ jobs:
             const prNumber = Number(process.env.PR_NUMBER);
             let issueNumber = Number(process.env.ISSUE_NUMBER || 0);
             const testOutcome = process.env.TEST_OUTCOME || "failure";
+            const retryCount = Number(process.env.RETRY_COUNT || 0);
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
             const ensureLabel = async (name, color, description) => {
               try {
@@ -353,6 +359,36 @@ jobs:
                 `_${noraName} (Quality Assurance)_`
               ].join("\n")
             });
+
+            const retryEligible =
+              !qaPass &&
+              testOutcome === "success" &&
+              hasCriteria &&
+              !hasFail &&
+              (mergeStatus === "failed" || deployStatus === "failed");
+
+            if (retryEligible && retryCount < 1) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: [
+                  "### Nora QA Auto-Retry",
+                  "Tests and criteria passed, but merge/deploy failed due pipeline state.",
+                  "QA will retry once automatically after the normal delay."
+                ].join("\n")
+              });
+              await github.rest.repos.createDispatchEvent({
+                owner,
+                repo,
+                event_type: "se_pr_ready",
+                client_payload: {
+                  pr_number: prNumber,
+                  issue_number: issueNumber,
+                  retry_count: retryCount + 1
+                }
+              });
+            }
 
             const prIssue = await github.rest.issues.get({
               owner,

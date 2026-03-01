@@ -1,0 +1,180 @@
+name: Pipeline Watchdog
+
+on:
+  schedule:
+    - cron: "20 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: pipeline-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect and unstick stalled queue items
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const now = Date.now();
+
+            const thresholds = {
+              ready: 6,
+              inProgress: 10,
+              qa: 6
+            };
+
+            const ava = {
+              name: "Ava PO",
+              avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=AvaPO"
+            };
+            const eve = {
+              name: "Eve SE",
+              avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE"
+            };
+            const nora = {
+              name: "Nora QA",
+              avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA"
+            };
+
+            const ageHours = (isoDate) => {
+              const value = new Date(isoDate || 0).getTime();
+              if (!Number.isFinite(value) || !value) return 999;
+              return (now - value) / (1000 * 60 * 60);
+            };
+
+            const openToolIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              labels: "type:tool",
+              per_page: 100
+            });
+
+            const openPrs = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100
+            });
+
+            async function recentlyPinged(issueNumber) {
+              const comments = await github.rest.issues.listComments({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 20
+              });
+              return comments.data.some((comment) => {
+                const body = String(comment.body || "");
+                if (!body.includes("Watchdog ping")) return false;
+                const hours = ageHours(comment.created_at);
+                return hours < 6;
+              });
+            }
+
+            let nudges = 0;
+
+            for (const issue of openToolIssues) {
+              if (issue.pull_request) continue;
+              const labels = (issue.labels || []).map((label) =>
+                typeof label === "string" ? label : label.name
+              );
+              const idle = ageHours(issue.updated_at || issue.created_at);
+              const skipNudge = await recentlyPinged(issue.number);
+              if (skipNudge) continue;
+
+              if (labels.includes("status:ready-for-engineering") && idle >= thresholds.ready) {
+                await github.rest.actions.createWorkflowDispatch({
+                  owner,
+                  repo,
+                  workflow_id: "software-engineer.yml",
+                  ref: "main",
+                  inputs: {
+                    issue_number: String(issue.number)
+                  }
+                });
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: [
+                    `![${ava.name}](${ava.avatar})`,
+                    "Watchdog ping: issue sat in `ready-for-engineering` too long, so engineering dispatch was retriggered.",
+                    `Idle time: ${idle.toFixed(1)}h`,
+                    "",
+                    `_${ava.name}_`
+                  ].join("\n")
+                });
+                nudges += 1;
+                continue;
+              }
+
+              if (labels.includes("status:in-progress") && idle >= thresholds.inProgress) {
+                await github.rest.actions.createWorkflowDispatch({
+                  owner,
+                  repo,
+                  workflow_id: "software-engineer.yml",
+                  ref: "main",
+                  inputs: {
+                    issue_number: String(issue.number)
+                  }
+                });
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: [
+                    `![${eve.name}](${eve.avatar})`,
+                    "Watchdog ping: implementation appears stalled, so Software Engineer automation was retriggered.",
+                    `Idle time: ${idle.toFixed(1)}h`,
+                    "",
+                    `_${eve.name}_`
+                  ].join("\n")
+                });
+                nudges += 1;
+                continue;
+              }
+
+              if (labels.includes("status:qa-review") && idle >= thresholds.qa) {
+                const linkedPr = openPrs.find((pr) =>
+                  String(pr.body || "").includes(`#${issue.number}`)
+                );
+                if (!linkedPr) {
+                  continue;
+                }
+
+                await github.rest.repos.createDispatchEvent({
+                  owner,
+                  repo,
+                  event_type: "se_pr_ready",
+                  client_payload: {
+                    pr_number: linkedPr.number,
+                    issue_number: issue.number
+                  }
+                });
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: [
+                    `![${nora.name}](${nora.avatar})`,
+                    "Watchdog ping: issue stayed in QA queue too long, so QA review was retriggered.",
+                    `Idle time: ${idle.toFixed(1)}h`,
+                    "",
+                    `_${nora.name}_`
+                  ].join("\n")
+                });
+                nudges += 1;
+              }
+            }
+
+            core.notice(`Pipeline watchdog completed. Nudges sent: ${nudges}.`);

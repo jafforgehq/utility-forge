@@ -5,6 +5,7 @@ const replayTimelineEl = document.querySelector("#replayTimeline");
 const standupListEl = document.querySelector("#standupList");
 const retroListEl = document.querySelector("#retroList");
 const celebrateLayerEl = document.querySelector("#celebrateLayer");
+const decisionLogLinkEl = document.querySelector("#decisionLogLink");
 
 const AGENTS = {
   ava: {
@@ -103,14 +104,30 @@ async function fetchJson(url) {
 
 function renderAgents(payload) {
   if (!agentGridEl) return;
-  const { readyCount, inProgressCount, qaCount, openPrCount, lastQaConclusion } = payload;
+  const {
+    readyCount,
+    inProgressCount,
+    qaCount,
+    openPrCount,
+    lastQaConclusion,
+    lastPoConclusion,
+    lastWatchdogConclusion
+  } = payload;
 
   const cards = [
     {
       ...AGENTS.ava,
       copy: `Prioritizing backlog. Ready queue: ${readyCount}.`,
       chips: [
-        { text: "Cadence: daily idea", tone: "ok" },
+        {
+          text: `Last PO: ${lastPoConclusion || "n/a"}`,
+          tone:
+            lastPoConclusion === "success"
+              ? "ok"
+              : lastPoConclusion === "failure"
+                ? "error"
+                : "info"
+        },
         { text: `Ready: ${readyCount}`, tone: readyCount ? "warn" : "info" }
       ]
     },
@@ -119,7 +136,16 @@ function renderAgents(payload) {
       copy: `Driving implementation throughput. Open PRs: ${openPrCount}.`,
       chips: [
         { text: `In progress: ${inProgressCount}`, tone: inProgressCount ? "warn" : "info" },
-        { text: `Open PRs: ${openPrCount}`, tone: openPrCount ? "ok" : "info" }
+        { text: `Open PRs: ${openPrCount}`, tone: openPrCount ? "ok" : "info" },
+        {
+          text: `Watchdog: ${lastWatchdogConclusion || "n/a"}`,
+          tone:
+            lastWatchdogConclusion === "success"
+              ? "ok"
+              : lastWatchdogConclusion === "failure"
+                ? "error"
+                : "info"
+        }
       ]
     },
     {
@@ -255,21 +281,28 @@ function celebrateRelease(issue) {
 async function loadTeamRoom() {
   const repo = inferRepoFromLocation();
   const base = `https://api.github.com/repos/${repo.owner}/${repo.repo}`;
+  if (decisionLogLinkEl) {
+    decisionLogLinkEl.href = `https://github.com/${repo.owner}/${repo.repo}/blob/main/docs/DECISION_LOG.md`;
+  }
 
   const [
     toolIssues,
     pulls,
+    poRunsData,
     seRunsData,
     qaRunsData,
     pagesRunsData,
+    watchdogRunsData,
     standups,
     retros
   ] = await Promise.all([
     fetchJson(`${base}/issues?state=all&labels=type:tool&sort=updated&direction=desc&per_page=100`),
     fetchJson(`${base}/pulls?state=all&sort=updated&direction=desc&per_page=60`),
+    fetchJson(`${base}/actions/workflows/daily-product-owner.yml/runs?per_page=20`),
     fetchJson(`${base}/actions/workflows/software-engineer.yml/runs?per_page=20`),
     fetchJson(`${base}/actions/workflows/qa-review.yml/runs?per_page=20`),
     fetchJson(`${base}/actions/workflows/pages.yml/runs?per_page=20`),
+    fetchJson(`${base}/actions/workflows/pipeline-watchdog.yml/runs?per_page=20`),
     fetchJson(`${base}/issues?state=all&labels=type:standup&sort=updated&direction=desc&per_page=20`),
     fetchJson(`${base}/issues?state=all&labels=type:retro&sort=updated&direction=desc&per_page=20`)
   ]);
@@ -292,17 +325,23 @@ async function loadTeamRoom() {
     if (labels.includes("status:qa-review")) qaCount += 1;
   }
 
+  const poRuns = poRunsData?.workflow_runs || [];
   const qaRuns = qaRunsData?.workflow_runs || [];
   const seRuns = seRunsData?.workflow_runs || [];
   const pagesRuns = pagesRunsData?.workflow_runs || [];
+  const watchdogRuns = watchdogRunsData?.workflow_runs || [];
+  const lastPo = poRuns[0] || null;
   const lastQa = qaRuns[0] || null;
+  const lastWatchdog = watchdogRuns[0] || null;
 
   renderAgents({
     readyCount,
     inProgressCount,
     qaCount,
     openPrCount: openPrs.length,
-    lastQaConclusion: lastQa?.conclusion || ""
+    lastQaConclusion: lastQa?.conclusion || "",
+    lastPoConclusion: lastPo?.conclusion || "",
+    lastWatchdogConclusion: lastWatchdog?.conclusion || ""
   });
 
   const latestMergedPr = mergedPrs[0] || null;
