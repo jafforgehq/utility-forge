@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Utility Forge - Agile Team Control Room</title>
+    <meta
+      name="description"
+      content="Ava PO, Eve SE, and Nora QA control room with live pipeline, standups, retros, and release replay."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./team.css" />
+  </head>
+  <body>
+    <div class="bg-layer bg-layer-a" aria-hidden="true"></div>
+    <div class="bg-layer bg-layer-b" aria-hidden="true"></div>
+    <main class="room">
+      <header class="room-head reveal">
+        <a class="back-link" href="./index.html">← Back to tools</a>
+        <p class="eyebrow">Utility Forge</p>
+        <h1>Agile Team Control Room</h1>
+        <p class="subhead">
+          Human-style autonomous team operations for <strong>Ava PO</strong>, <strong>Eve SE</strong>, and
+          <strong>Nora QA</strong>.
+        </p>
+      </header>
+
+      <section class="panel reveal" aria-labelledby="control-room-title">
+        <div class="panel-head">
+          <h2 id="control-room-title">Agent Control Room</h2>
+          <p id="roomTimestamp" class="panel-meta">Syncing...</p>
+        </div>
+        <div id="agentGrid" class="agent-grid">
+          <article class="agent-card loading">Loading team state...</article>
+        </div>
+      </section>
+
+      <section class="panel reveal" aria-labelledby="lead-time-title">
+        <div class="panel-head">
+          <h2 id="lead-time-title">Lead-Time Meters</h2>
+          <p class="panel-meta">Idea -> PR -> QA -> Deploy</p>
+        </div>
+        <div id="leadMeters" class="lead-meters">
+          <article class="meter loading">Computing lead times...</article>
+        </div>
+      </section>
+
+      <section class="panel reveal" aria-labelledby="replay-title">
+        <div class="panel-head">
+          <h2 id="replay-title">Conversation Replay</h2>
+          <p class="panel-meta">PO brief -> SE plan -> QA verdict</p>
+        </div>
+        <ol id="replayTimeline" class="replay">
+          <li class="replay-item loading">Loading replay...</li>
+        </ol>
+      </section>
+
+      <section class="panel reveal rituals" aria-labelledby="rituals-title">
+        <div class="panel-head">
+          <h2 id="rituals-title">Standups & Retros</h2>
+          <p class="panel-meta">Daily + weekly agile rituals</p>
+        </div>
+        <div class="ritual-columns">
+          <div>
+            <h3>Daily Standups</h3>
+            <div id="standupList" class="ritual-list">
+              <article class="ritual-item loading">Loading standups...</article>
+            </div>
+          </div>
+          <div>
+            <h3>Weekly Retros</h3>
+            <div id="retroList" class="ritual-list">
+              <article class="ritual-item loading">Loading retros...</article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel reveal" aria-labelledby="decision-log-title">
+        <div class="panel-head">
+          <h2 id="decision-log-title">Decision Trail</h2>
+        </div>
+        <p class="decision-copy">
+          Product decisions are tracked in
+          <a href="../docs/DECISION_LOG.md">docs/DECISION_LOG.md</a> and updated automatically as tools ship.
+        </p>
+      </section>
+    </main>
+
+    <div id="celebrateLayer" class="celebrate-layer" aria-hidden="true"></div>
+    <script type="module" src="./team.js"></script>
+  </body>
+</html>

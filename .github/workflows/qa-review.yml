@@ -26,6 +26,8 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.client_payload.pr_number || github.event.inputs.pr_number }}
       ISSUE_NUMBER: ${{ github.event.client_payload.issue_number || github.event.inputs.issue_number }}
+      NORA_NAME: Nora QA
+      NORA_AVATAR: https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA
     steps:
       - name: Ensure input payload exists
         run: |
@@ -63,6 +65,8 @@ jobs:
           TEST_OUTCOME: ${{ steps.tests.outcome }}
           PR_NUMBER: ${{ env.PR_NUMBER }}
           ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
+          NORA_NAME: ${{ env.NORA_NAME }}
+          NORA_AVATAR: ${{ env.NORA_AVATAR }}
         with:
           script: |
             const fs = require("fs");
@@ -287,15 +291,48 @@ jobs:
             }
 
             const qaDecision = qaPass ? "PASS" : "FAIL";
+            const noraName = process.env.NORA_NAME || "Nora QA";
+            const noraAvatar = process.env.NORA_AVATAR || "";
+
+            let severity = "Low";
+            let risk = "Low";
+            if (testOutcome !== "success" || hasFail) {
+              severity = "High";
+              risk = "High";
+            } else if (mergeStatus === "failed" || deployStatus === "failed") {
+              severity = "Medium";
+              risk = "Medium";
+            }
+
+            const recommendation = qaPass
+              ? "Approve and auto-merge. Monitor first production run and user feedback."
+              : "Keep PR open. Resolve the failed checkpoint, then rerun QA for a new verdict.";
+
+            const retroNotes = qaPass
+              ? [
+                  "- What worked: tests and acceptance criteria aligned with implementation.",
+                  "- What to keep: automated merge + deploy path stayed deterministic."
+                ]
+              : [
+                  "- What failed: at least one quality gate (tests/criteria/merge/deploy) blocked completion.",
+                  "- Follow-up: tighten handoff checks before QA starts to reduce rerun cycles."
+                ];
 
             await github.rest.issues.createComment({
               owner,
               repo,
               issue_number: prNumber,
               body: [
+                noraAvatar ? `![${noraName}](${noraAvatar})` : "",
                 "## QA Review Report",
+                `Reviewer: **${noraName}**`,
                 `Decision: **${qaDecision}**`,
                 `Automated tests: **${testOutcome}**`,
+                "",
+                "### Structured Assessment",
+                `- Severity: **${severity}**`,
+                `- Risk: **${risk}**`,
+                `- Recommendation: ${recommendation}`,
                 "",
                 "### Acceptance criteria status",
                 acceptanceSummary,
@@ -306,9 +343,14 @@ jobs:
                 "### Deploy status",
                 `- ${deployStatus.toUpperCase()}: ${deployDetail}`,
                 "",
+                "### Retro-Ready Notes",
+                ...retroNotes,
+                "",
                 qaPass
-                  ? "QA automation marked this change complete."
-                  : "QA automation blocked completion because tests/criteria/merge failed."
+                  ? `${noraName} marked this change complete.`
+                  : `${noraName} blocked completion because tests/criteria/merge/deploy checks failed.`,
+                "",
+                `_${noraName} (Quality Assurance)_`
               ].join("\n")
             });
 

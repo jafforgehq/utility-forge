@@ -37,6 +37,8 @@ jobs:
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL || 'gpt-4o-mini' }}
+      EVE_NAME: Eve SE
+      EVE_AVATAR: https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -189,6 +191,60 @@ jobs:
         if: steps.select.outputs.should_run != 'true'
         run: echo "No eligible issue to implement."
 
+      - name: Post Eve implementation plan
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ steps.select.outputs.issue_number }}
+          TOOL_NAME: ${{ steps.select.outputs.tool_name }}
+          ISSUE_BODY: ${{ steps.select.outputs.issue_body }}
+          EVE_NAME: ${{ env.EVE_NAME }}
+          EVE_AVATAR: ${{ env.EVE_AVATAR }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const toolName = process.env.TOOL_NAME || "this tool";
+            const issueBody = process.env.ISSUE_BODY || "";
+            const eveName = process.env.EVE_NAME || "Eve SE";
+            const eveAvatar = process.env.EVE_AVATAR || "";
+
+            const acceptanceSection = issueBody.match(
+              /## Acceptance Criteria[\s\S]*?(?:\n## |\n---|$)/i
+            );
+            const criteria = acceptanceSection?.[0]
+              ? acceptanceSection[0]
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter((line) => line.startsWith("- "))
+              : [];
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: [
+                eveAvatar ? `![${eveName}](${eveAvatar})` : "",
+                `### ${eveName} Implementation Plan`,
+                "",
+                `Tool target: **${toolName}**`,
+                "",
+                "**Plan**",
+                "- Scaffold tool page under `site/tools/<slug>/` with focused UX for the requested job.",
+                "- Implement core logic module with strict input validation and explicit errors.",
+                "- Add automated tests in `test/` for happy path and invalid input cases.",
+                "- Update homepage registry + README so this release is visible to users.",
+                "",
+                "**Acceptance Criteria Checkpoints**",
+                ...(criteria.length ? criteria : ["- Criteria not parsed automatically; validating against issue manually."]),
+                "",
+                `_${eveName} (Software Engineer)_`
+              ]
+                .filter(Boolean)
+                .join("\n")
+            });
+
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
@@ -256,9 +312,11 @@ jobs:
                 repo,
                 head: branch,
                 base: "main",
-                title: `[Software Engineer] ${toolName}`,
+                title: `[Eve SE] ${toolName}`,
                 body: [
                   `Implements Product Owner issue #${issueNumber}.`,
+                  "",
+                  "Prepared by **Eve SE**.",
                   "",
                   "## What this PR includes",
                   "- Generated tool page under `site/tools/`",
@@ -306,7 +364,15 @@ jobs:
               owner,
               repo,
               issue_number: issueNumber,
-              body: `Software Engineer opened PR #${pr.number}. QA review starts automatically after 15 minutes.`
+              body: [
+                `![${process.env.EVE_NAME}](${process.env.EVE_AVATAR})`,
+                `### ${process.env.EVE_NAME} Handoff`,
+                `- Opened PR #${pr.number} for this issue.`,
+                "- Code + tests are ready for QA validation.",
+                "- QA review starts automatically after 15 minutes.",
+                "",
+                `_${process.env.EVE_NAME} (Software Engineer)_`
+              ].join("\n")
             });
 
             await github.rest.repos.createDispatchEvent({

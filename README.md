@@ -14,6 +14,7 @@ The long-term model is a daily tool release managed by 3 roles:
 
 This repo is configured for automatic deployment to GitHub Pages from `main` using `.github/workflows/pages.yml`.
 - Public URL: `https://jafforgehq.github.io/utility-forge/`
+- Agile Team Control Room: `https://jafforgehq.github.io/utility-forge/team.html`
 
 ## Local Development
 
@@ -32,7 +33,9 @@ Workflow: `.github/workflows/daily-product-owner.yml`
 What it does:
 - Runs every day.
 - Uses OpenAI API to generate one fresh tool idea.
-- Creates a GitHub issue titled with the tool name and launch date.
+- Creates a GitHub issue titled with the tool name and launch date (signed by **Ava PO**).
+- Adds PO scorecard context (`Value`, `Effort`, `Confidence`, `Why now`).
+- Starts a standup-style issue comment thread (`Yesterday`, `Today`, `Blockers`).
 - Enforces guardrails:
   - Max one daily issue per date tag
   - Duplicate tool-name detection with one regeneration attempt
@@ -51,7 +54,9 @@ Workflow: `.github/workflows/software-engineer.yml`
 
 What it does:
 - Triggers when an issue gets `status:ready-for-engineering`.
+- Posts an implementation-plan comment from **Eve SE** before coding.
 - Creates a `codex/...` branch, generates a tool implementation, runs tests, and opens a PR.
+- Appends a human-readable entry to the product `docs/DECISION_LOG.md`.
 - Dispatches QA handoff event after PR creation.
 
 ## QA Automation
@@ -61,11 +66,20 @@ Workflow: `.github/workflows/qa-review.yml`
 What it does:
 - Triggered by Software Engineer handoff dispatch.
 - Waits 15 minutes before running QA checks (hard delay gate).
-- Runs tests plus acceptance-criteria matching, posts a QA report, auto-merges passing PRs, and closes linked issues.
+- Runs tests plus acceptance-criteria matching, posts a structured QA report from **Nora QA** (`Severity`, `Risk`, `Recommendation`), auto-merges passing PRs, and closes linked issues.
+
+## Team Ritual Workflows
+
+- Daily Standup (`.github/workflows/daily-standup.yml`): opens a standup issue with role updates from Ava PO, Eve SE, and Nora QA.
+- Weekly Retro (`.github/workflows/weekly-retro.yml`): opens a Friday retro issue with wins/failures/action items and team reflections.
 
 ## Role Operating Model
 
 See detailed flow in [`docs/OPERATING_MODEL.md`](docs/OPERATING_MODEL.md).
+
+## Decision Trail
+
+- Product rationale log: [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md)
 
 ## Initial Backlog Direction
 

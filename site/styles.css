@@ -76,6 +76,30 @@ body {
   color: var(--muted);
 }
 
+.hero-cta-wrap {
+  margin: 0.95rem 0 0;
+}
+
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.46rem 0.72rem;
+  border-radius: 10px;
+  border: 1px solid rgba(95, 209, 255, 0.32);
+  color: var(--text);
+  text-decoration: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  background: rgba(11, 28, 37, 0.72);
+  transition: transform 220ms ease, border-color 220ms ease;
+}
+
+.hero-cta:hover {
+  transform: translateY(-1px);
+  border-color: rgba(95, 209, 255, 0.58);
+}
+
 .tool-panel,
 .ops {
   margin-top: 1.6rem;

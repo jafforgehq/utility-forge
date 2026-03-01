@@ -1,0 +1,182 @@
+name: Daily Team Standup
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: daily-team-standup
+  cancel-in-progress: false
+
+jobs:
+  publish-standup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create standup issue and role updates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const now = new Date();
+            const dateTag = now.toISOString().slice(0, 10);
+            const title = `[Standup] ${dateTag}`;
+
+            const agents = {
+              ava: {
+                name: "Ava PO",
+                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=AvaPO"
+              },
+              eve: {
+                name: "Eve SE",
+                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE"
+              },
+              nora: {
+                name: "Nora QA",
+                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA"
+              }
+            };
+
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            }
+
+            await ensureLabel("type:standup", "577590", "Daily agile standup issue");
+            await ensureLabel("ritual:team", "4d908e", "Team ritual issue");
+
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              labels: "type:standup",
+              per_page: 100
+            });
+
+            if (existing.data.some((issue) => issue.title === title)) {
+              core.info(`Standup issue already exists for ${dateTag}.`);
+              return;
+            }
+
+            const openToolIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              labels: "type:tool",
+              per_page: 100
+            });
+
+            const queues = {
+              ready: 0,
+              inProgress: 0,
+              qa: 0
+            };
+
+            for (const issue of openToolIssues.data) {
+              if (issue.pull_request) continue;
+              const labels = (issue.labels || []).map((label) =>
+                typeof label === "string" ? label : label.name
+              );
+              if (labels.includes("status:ready-for-engineering")) queues.ready += 1;
+              if (labels.includes("status:in-progress")) queues.inProgress += 1;
+              if (labels.includes("status:qa-review")) queues.qa += 1;
+            }
+
+            const created = await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              labels: ["type:standup", "ritual:team"],
+              body: [
+                "# Daily Agile Standup",
+                "",
+                `Date: **${dateTag}**`,
+                "",
+                "## Team Snapshot",
+                `- Ready queue: **${queues.ready}**`,
+                `- In progress: **${queues.inProgress}**`,
+                `- In QA: **${queues.qa}**`,
+                "",
+                "## Standup Thread Format",
+                "Each role updates this thread with:",
+                "- Yesterday",
+                "- Today",
+                "- Blockers",
+                "",
+                "Use this issue for lightweight, human-readable coordination."
+              ].join("\n")
+            });
+
+            const issueNumber = created.data.number;
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: [
+                `![${agents.ava.name}](${agents.ava.avatar})`,
+                `### ${agents.ava.name}`,
+                "",
+                "**Yesterday**",
+                "- Prioritized ideas and validated launch sequencing.",
+                "",
+                "**Today**",
+                `- Confirm next daily tool opportunity with current queue signals (ready=${queues.ready}).`,
+                "",
+                "**Blockers**",
+                "- None at this time.",
+                "",
+                `_${agents.ava.name}_`
+              ].join("\n")
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: [
+                `![${agents.eve.name}](${agents.eve.avatar})`,
+                `### ${agents.eve.name}`,
+                "",
+                "**Yesterday**",
+                "- Progressed active implementation branch and aligned tests.",
+                "",
+                "**Today**",
+                `- Drive implementation throughput (in-progress=${queues.inProgress}, ready=${queues.ready}).`,
+                "",
+                "**Blockers**",
+                "- Waiting only on queue/merge sequencing.",
+                "",
+                `_${agents.eve.name}_`
+              ].join("\n")
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: [
+                `![${agents.nora.name}](${agents.nora.avatar})`,
+                `### ${agents.nora.name}`,
+                "",
+                "**Yesterday**",
+                "- Validated latest PR against acceptance criteria.",
+                "",
+                "**Today**",
+                `- Clear QA queue and publish structured risk reports (qa=${queues.qa}).`,
+                "",
+                "**Blockers**",
+                "- None. Monitoring for mergeability edge cases.",
+                "",
+                `_${agents.nora.name}_`
+              ].join("\n")
+            });

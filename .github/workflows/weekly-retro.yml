@@ -1,0 +1,197 @@
+name: Weekly Team Retro
+
+on:
+  schedule:
+    - cron: "0 16 * * 5"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: weekly-team-retro
+  cancel-in-progress: false
+
+jobs:
+  publish-retro:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create weekly retro issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const now = new Date();
+            const day = now.getUTCDay(); // 0..6
+            const diffToMonday = (day + 6) % 7;
+            const weekStart = new Date(now);
+            weekStart.setUTCDate(now.getUTCDate() - diffToMonday);
+            weekStart.setUTCHours(0, 0, 0, 0);
+
+            const weekEnd = new Date(weekStart);
+            weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+            weekEnd.setUTCHours(23, 59, 59, 999);
+
+            const weekStartTag = weekStart.toISOString().slice(0, 10);
+            const weekEndTag = weekEnd.toISOString().slice(0, 10);
+            const title = `[Weekly Retro] ${weekStartTag} to ${weekEndTag}`;
+
+            const agents = {
+              ava: {
+                name: "Ava PO",
+                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=AvaPO"
+              },
+              eve: {
+                name: "Eve SE",
+                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=EveSE"
+              },
+              nora: {
+                name: "Nora QA",
+                avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=NoraQA"
+              }
+            };
+
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            }
+
+            await ensureLabel("type:retro", "bc6c25", "Weekly retro issue");
+            await ensureLabel("ritual:team", "4d908e", "Team ritual issue");
+
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              labels: "type:retro",
+              per_page: 100
+            });
+
+            if (existing.data.some((issue) => issue.title === title)) {
+              core.info(`Retro issue already exists for ${weekStartTag}-${weekEndTag}.`);
+              return;
+            }
+
+            const doneIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "closed",
+              labels: "type:tool,status:done",
+              per_page: 100
+            });
+
+            const weekDone = doneIssues.data.filter((issue) => {
+              const closed = new Date(issue.closed_at || issue.updated_at || issue.created_at);
+              return closed >= weekStart && closed <= weekEnd;
+            });
+
+            const qaRuns = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: "qa-review.yml",
+              per_page: 100
+            });
+
+            const weekQaRuns = qaRuns.data.workflow_runs.filter((run) => {
+              const created = new Date(run.created_at);
+              return created >= weekStart && created <= weekEnd;
+            });
+
+            const qaSuccess = weekQaRuns.filter((run) => run.conclusion === "success").length;
+            const qaFail = weekQaRuns.filter((run) => run.conclusion === "failure").length;
+
+            const created = await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              labels: ["type:retro", "ritual:team"],
+              body: [
+                "# Weekly Retro",
+                "",
+                `Period: **${weekStartTag} to ${weekEndTag}**`,
+                "",
+                "## Metrics",
+                `- Tools shipped: **${weekDone.length}**`,
+                `- QA success runs: **${qaSuccess}**`,
+                `- QA failed runs: **${qaFail}**`,
+                "",
+                "## Wins",
+                "-",
+                "",
+                "## Failures / Friction",
+                "-",
+                "",
+                "## Action Items",
+                "- [ ]",
+                "",
+                "## Next Week Focus",
+                "-"
+              ].join("\n")
+            });
+
+            const issueNumber = created.data.number;
+            const shippedList = weekDone.length
+              ? weekDone.slice(0, 8).map((item) => `- #${item.number} ${item.title}`)
+              : ["- No tools shipped this week."];
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: [
+                `![${agents.ava.name}](${agents.ava.avatar})`,
+                `### ${agents.ava.name} Product Reflection`,
+                "",
+                "**Wins**",
+                ...shippedList,
+                "",
+                "**Improvements**",
+                "- Tighten idea framing to reduce engineering ambiguity.",
+                "",
+                `_${agents.ava.name}_`
+              ].join("\n")
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: [
+                `![${agents.eve.name}](${agents.eve.avatar})`,
+                `### ${agents.eve.name} Engineering Reflection`,
+                "",
+                "**Wins**",
+                "- Implementation automation stayed reliable for generated tool scaffolds.",
+                "",
+                "**Improvements**",
+                "- Reduce branch drift by syncing earlier before QA handoff.",
+                "",
+                `_${agents.eve.name}_`
+              ].join("\n")
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: [
+                `![${agents.nora.name}](${agents.nora.avatar})`,
+                `### ${agents.nora.name} QA Reflection`,
+                "",
+                "**Wins**",
+                `- ${qaSuccess} successful QA runs this week.`,
+                "",
+                "**Improvements**",
+                "- Convert repeated failures into explicit pre-QA checks.",
+                "",
+                `_${agents.nora.name}_`
+              ].join("\n")
+            });

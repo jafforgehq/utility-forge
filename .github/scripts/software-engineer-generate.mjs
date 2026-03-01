@@ -17,6 +17,7 @@ const toolDir = path.join(root, "site", "tools", toolSlug);
 const testPath = path.join(root, "test", `generated-${toolSlug}.test.mjs`);
 const registryPath = path.join(root, "site", "generated-tools.json");
 const readmePath = path.join(root, "README.md");
+const decisionLogPath = path.join(root, "docs", "DECISION_LOG.md");
 
 function sanitizeForJs(text) {
   return String(text || "")
@@ -545,6 +546,72 @@ function updateRegistry(slug, name, summary, sourceIssue) {
   fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n");
 }
 
+function extractSectionValue(body, sectionName) {
+  const regex = new RegExp(`##\\s*${sectionName}\\s*([\\s\\S]*?)(\\n## |\\n---|$)`, "i");
+  const match = String(body || "").match(regex);
+  if (!match || !match[1]) {
+    return "";
+  }
+  return match[1].trim();
+}
+
+function extractScorecardField(scorecardText, fieldName, fallback = "") {
+  const regex = new RegExp(`-\\s*${fieldName}\\s*:\\s*(.+)`, "i");
+  const match = String(scorecardText || "").match(regex);
+  return match?.[1]?.trim() || fallback;
+}
+
+function updateDecisionLog(name, slug, sourceIssue, bodyText) {
+  const scorecard = extractSectionValue(bodyText, "PO Scorecard");
+  const problem = extractSectionValue(bodyText, "Problem").split("\n")[0].trim();
+  const users = extractSectionValue(bodyText, "Users").split("\n")[0].trim();
+
+  const value = extractScorecardField(scorecard, "Value", "4/5");
+  const effort = extractScorecardField(scorecard, "Effort", "S");
+  const confidence = extractScorecardField(scorecard, "Confidence", "0.78");
+  const whyNow = extractScorecardField(
+    scorecard,
+    "Why now",
+    "Requested frequently in day-to-day engineering workflows."
+  );
+
+  const dateTag = new Date().toISOString().slice(0, 10);
+  const marker = `issue #${sourceIssue}`;
+  const entry = [
+    `## ${dateTag} - ${name} (${marker})`,
+    "",
+    `- Tool: [${name}](../site/tools/${slug}/)`,
+    `- Value: ${value}`,
+    `- Effort: ${effort}`,
+    `- Confidence: ${confidence}`,
+    `- Why now: ${whyNow}`,
+    `- Problem: ${problem || "Not provided."}`,
+    `- Users: ${users || "Not provided."}`,
+    ""
+  ].join("\n");
+
+  if (!fs.existsSync(decisionLogPath)) {
+    const header = [
+      "# Decision Log",
+      "",
+      "Human-readable trail of why each tool was selected.",
+      "",
+      "_Maintained by Ava PO -> Eve SE handoff automation._",
+      "",
+      entry
+    ].join("\n");
+    fs.writeFileSync(decisionLogPath, header);
+    return;
+  }
+
+  const current = fs.readFileSync(decisionLogPath, "utf8");
+  if (current.includes(marker)) {
+    return;
+  }
+
+  fs.writeFileSync(decisionLogPath, `${current.trimEnd()}\n\n${entry}`);
+}
+
 function writeFiles(spec) {
   fs.mkdirSync(toolDir, { recursive: true });
   fs.writeFileSync(path.join(toolDir, "index.html"), buildToolHtml(toolName, spec.summary));
@@ -565,5 +632,6 @@ const spec = generatedSpec || fallbackSpec(toolName);
 writeFiles(spec);
 updateRegistry(toolSlug, toolName, spec.summary, issueNumber);
 updateReadme(toolName, toolSlug, spec.summary);
+updateDecisionLog(toolName, toolSlug, issueNumber, issueBody);
 
 console.log(`Generated tool: ${toolSlug}`);
