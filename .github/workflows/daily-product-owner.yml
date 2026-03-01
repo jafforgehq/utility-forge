@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
   issues: write
 
@@ -248,10 +248,27 @@ jobs:
               "- QA: validate against acceptance criteria and approve merge."
             ].join("\n");
 
-            await github.rest.issues.create({
+            const createdIssue = await github.rest.issues.create({
               owner,
               repo,
               title: issueTitle,
               body,
               labels: ["role:product-owner", "status:ready-for-engineering", "type:tool"]
+            });
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: "software-engineer.yml",
+              ref: "main",
+              inputs: {
+                issue_number: String(createdIssue.data.number)
+              }
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: createdIssue.data.number,
+              body: "Product Owner dispatched Software Engineer automation for this issue."
             });

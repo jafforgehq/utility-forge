@@ -3,6 +3,8 @@ name: Software Engineer Automation
 on:
   issues:
     types: [labeled]
+  schedule:
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       issue_number:
@@ -24,6 +26,7 @@ jobs:
   implement:
     if: >
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       (github.event_name == 'issues' &&
        github.event.action == 'labeled' &&
        github.event.label.name == 'status:ready-for-engineering')
@@ -65,10 +68,25 @@ jobs:
             await ensureLabel("status:qa-review", "ca6702", "Waiting for QA verification");
 
             const inputIssue = context.payload.inputs?.issue_number || "";
-            const issueNumber = Number(inputIssue || context.payload.issue?.number || 0);
+            let issueNumber = Number(inputIssue || context.payload.issue?.number || 0);
+
+            if (!issueNumber) {
+              const readyIssues = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: "open",
+                labels: "status:ready-for-engineering",
+                sort: "created",
+                direction: "asc",
+                per_page: 100
+              });
+              const nextIssue = readyIssues.find((item) => !item.pull_request);
+              issueNumber = Number(nextIssue?.number || 0);
+            }
+
             if (!issueNumber) {
               core.setOutput("should_run", "false");
-              core.notice("No issue number supplied.");
+              core.notice("No eligible status:ready-for-engineering issue found.");
               return;
             }
 
