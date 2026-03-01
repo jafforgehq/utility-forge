@@ -351,9 +351,10 @@ function renderActivityFeed(items) {
     return;
   }
 
-  for (const item of items) {
+  for (const [index, item] of items.entries()) {
     const article = document.createElement("article");
     article.className = `activity-item activity-${item.tone}`;
+    article.style.setProperty("--activity-delay", `${index * 55}ms`);
 
     const body = document.createElement("div");
     body.className = "activity-body";
