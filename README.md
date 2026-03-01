@@ -78,4 +78,5 @@ This keeps idea generation consistent while still producing one new concept dail
 ## Generated Tools
 
 - [Base64 / URL-safe Converter](site/tools/productownerdailytoolidea2026-02-27-1/) - Convert UTF-8 text between Base64 and URL-safe Base64 formats.
+- [JWT payload decoder and expiry checker](site/tools/jwt-payload-decoder-and-expiry-checker-5/) - Normalize and sort lines of text for quick developer cleanup tasks.
 - [Convert curl command -> fetch snippet generator](site/tools/convert-curl-command-fetch-snippet-gener-3/) - Normalize and sort lines of text for quick developer cleanup tasks.
