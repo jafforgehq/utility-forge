@@ -26,5 +26,12 @@
     "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
     "path": "./tools/http-status-code-lookup-assistant-6/",
     "source_issue": 6
+  },
+  {
+    "slug": "markdown-table-builder-from-csv-12",
+    "title": "Markdown table builder from CSV",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/markdown-table-builder-from-csv-12/",
+    "source_issue": 12
   }
 ]
