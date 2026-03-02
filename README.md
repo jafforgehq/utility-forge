@@ -94,8 +94,8 @@ This keeps idea generation consistent while still producing one new concept dail
 
 ## Generated Tools
 
-- [Base64 / URL-safe Converter](site/tools/productownerdailytoolidea2026-02-27-1/) - Convert UTF-8 text between Base64 and URL-safe Base64 formats.
-- [Markdown table builder from CSV](site/tools/markdown-table-builder-from-csv-12/) - Normalize and sort lines of text for quick developer cleanup tasks.
-- [JWT payload decoder and expiry checker](site/tools/jwt-payload-decoder-and-expiry-checker-5/) - Normalize and sort lines of text for quick developer cleanup tasks.
-- [Convert curl command -> fetch snippet generator](site/tools/convert-curl-command-fetch-snippet-gener-3/) - Normalize and sort lines of text for quick developer cleanup tasks.
-- [HTTP status code lookup assistant](site/tools/http-status-code-lookup-assistant-6/) - Normalize and sort lines of text for quick developer cleanup tasks.
+- [Base64 / URL-safe Converter](site/tools/base64-url-safe-converter-1/) - Convert UTF-8 text between Base64 and URL-safe Base64 formats.
+- [JWT payload decoder and expiry checker](site/tools/jwt-payload-decoder-and-expiry-checker-5/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. JWT decode flow is planned next.
+- [Convert curl command -> fetch snippet generator](site/tools/convert-curl-command-fetch-snippet-gener-3/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. Curl parsing is planned next.
+- [HTTP status code lookup assistant](site/tools/http-status-code-lookup-assistant-6/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. HTTP lookup catalog is planned next.
+- [Markdown table builder from CSV](site/tools/markdown-table-builder-from-csv-12/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. CSV-to-table conversion is planned next.

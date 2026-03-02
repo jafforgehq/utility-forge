@@ -133,17 +133,13 @@ function getLabelNames(item) {
     .filter(Boolean);
 }
 
-function normalizeTitle(title, summary) {
+function normalizeTitle(title) {
   let normalized = String(title || "").trim();
   while (/^\[[^\]]+\]\s*/.test(normalized)) {
     normalized = normalized.replace(/^\[[^\]]+\]\s*/, "").trim();
   }
 
   normalized = normalized.replace(/\(launch\s+\d{4}-\d{2}-\d{2}\)$/i, "").trim();
-
-  if (/daily tool idea \d{4}-\d{2}-\d{2}/i.test(normalized) && /base64/i.test(summary || "")) {
-    return "Base64 / URL-safe Converter";
-  }
 
   return normalized || "Developer Tool";
 }
@@ -349,7 +345,7 @@ function refreshActivityMetaTimes() {
 
 function activityFromIssue(issue) {
   const labels = getLabelNames(issue);
-  const toolName = normalizeTitle(extractToolNameFromIssue(issue.body, issue.title), "");
+  const toolName = normalizeTitle(extractToolNameFromIssue(issue.body, issue.title));
   let title = `Issue updated: ${toolName}`;
   let tone = "info";
 
@@ -381,7 +377,7 @@ function activityFromIssue(issue) {
 }
 
 function activityFromPull(pr) {
-  const name = normalizeTitle(pr.title, "");
+  const name = normalizeTitle(pr.title);
   let title = `PR updated: ${name}`;
   let tone = "info";
   let when = pr.updated_at || pr.created_at;
@@ -722,7 +718,7 @@ async function loadToolCatalog() {
       },
       ...(Array.isArray(generated)
         ? generated.map((tool) => ({
-            title: normalizeTitle(tool.title, tool.summary),
+            title: normalizeTitle(tool.title),
             summary: tool.summary || "",
             url: tool.path || "",
             status: "Live",
@@ -755,7 +751,7 @@ async function loadToolCatalog() {
             const extracted = extractToolNameFromIssue(item.body, item.title);
             const launchIso = toIsoDate(upcomingDateFromIssue(item));
             return {
-              title: normalizeTitle(extracted, ""),
+              title: normalizeTitle(extracted),
               summary: "Scheduled by Product Owner automation.",
               url: item.html_url,
               status: state,

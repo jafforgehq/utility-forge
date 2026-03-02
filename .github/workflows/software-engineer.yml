@@ -3,10 +3,6 @@ name: Software Engineer Automation
 on:
   issues:
     types: [labeled]
-  push:
-    branches: [main]
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       issue_number:
@@ -28,8 +24,6 @@ jobs:
   implement:
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
       (github.event_name == 'issues' &&
        github.event.action == 'labeled' &&
        github.event.label.name == 'status:ready-for-engineering')

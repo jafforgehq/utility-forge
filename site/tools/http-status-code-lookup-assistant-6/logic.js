@@ -1,5 +1,5 @@
 export const TOOL_NAME = `HTTP status code lookup assistant`;
-export const TOOL_SUMMARY = `Normalize and sort lines of text for quick developer cleanup tasks.`;
+export const TOOL_SUMMARY = `Prototype v1 for text cleanup: normalize whitespace and sort lines. HTTP lookup catalog is planned next.`;
 export const SAMPLE_INPUT = `zeta
 alpha
 alpha   beta`;

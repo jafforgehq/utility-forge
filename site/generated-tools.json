@@ -1,36 +1,36 @@
 [
   {
-    "slug": "productownerdailytoolidea2026-02-27-1",
+    "slug": "base64-url-safe-converter-1",
     "title": "Base64 / URL-safe Converter",
     "summary": "Convert UTF-8 text between Base64 and URL-safe Base64 formats.",
-    "path": "./tools/productownerdailytoolidea2026-02-27-1/",
+    "path": "./tools/base64-url-safe-converter-1/",
     "source_issue": 1
   },
   {
     "slug": "convert-curl-command-fetch-snippet-gener-3",
     "title": "Convert curl command -> fetch snippet generator",
-    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. Curl parsing is planned next.",
     "path": "./tools/convert-curl-command-fetch-snippet-gener-3/",
     "source_issue": 3
   },
   {
     "slug": "jwt-payload-decoder-and-expiry-checker-5",
     "title": "JWT payload decoder and expiry checker",
-    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. JWT decode flow is planned next.",
     "path": "./tools/jwt-payload-decoder-and-expiry-checker-5/",
     "source_issue": 5
   },
   {
     "slug": "http-status-code-lookup-assistant-6",
     "title": "HTTP status code lookup assistant",
-    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. HTTP lookup catalog is planned next.",
     "path": "./tools/http-status-code-lookup-assistant-6/",
     "source_issue": 6
   },
   {
     "slug": "markdown-table-builder-from-csv-12",
     "title": "Markdown table builder from CSV",
-    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. CSV-to-table conversion is planned next.",
     "path": "./tools/markdown-table-builder-from-csv-12/",
     "source_issue": 12
   }
