@@ -33,5 +33,12 @@
     "summary": "Convert CSV or TSV rows into clean Markdown tables for docs and pull requests.",
     "path": "./tools/markdown-table-builder-from-csv-12/",
     "source_issue": 12
+  },
+  {
+    "slug": "sql-formatter-and-pretty-printer-15",
+    "title": "SQL formatter and pretty printer",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/sql-formatter-and-pretty-printer-15/",
+    "source_issue": 15
   }
 ]
