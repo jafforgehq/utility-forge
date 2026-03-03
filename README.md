@@ -110,6 +110,7 @@ This keeps idea generation consistent while still producing one new concept dail
 ## Generated Tools
 
 - [Base64 / URL-safe Converter](site/tools/base64-url-safe-converter-1/) - Convert UTF-8 text between Base64 and URL-safe Base64 formats.
+- [SQL formatter and pretty printer](site/tools/sql-formatter-and-pretty-printer-15/) - Normalize and sort lines of text for quick developer cleanup tasks.
 - [JWT payload decoder and expiry checker](site/tools/jwt-payload-decoder-and-expiry-checker-5/) - Decode JWT payloads instantly and check expiry status for quick auth debugging.
 - [Convert curl command -> fetch snippet generator](site/tools/convert-curl-command-fetch-snippet-gener-3/) - Convert common curl commands into JavaScript fetch snippets for quick API testing and docs.
 - [HTTP status code lookup assistant](site/tools/http-status-code-lookup-assistant-6/) - Look up HTTP status meanings quickly, including single-code and batch lookup modes.
