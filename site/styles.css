@@ -76,6 +76,15 @@ body {
   color: var(--muted);
 }
 
+.hero-disclaimer {
+  margin: 0.7rem 0 0;
+  max-width: 74ch;
+  color: #f6cc95;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.01em;
+}
+
 .hero-cta-wrap {
   margin: 0.95rem 0 0;
 }
@@ -367,6 +376,36 @@ button.ghost {
 }
 
 .health-value[data-tone="info"] {
+  color: #9fe3ff;
+}
+
+.results-grid {
+  margin-top: 0.72rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.62rem;
+}
+
+.result-card {
+  border-radius: 11px;
+  border: 1px solid rgba(164, 210, 228, 0.2);
+  background: linear-gradient(160deg, rgba(16, 30, 39, 0.9), rgba(7, 13, 18, 0.86));
+  padding: 0.72rem 0.78rem;
+}
+
+.result-label {
+  margin: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.69rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.result-value {
+  margin: 0.38rem 0 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
   color: #9fe3ff;
 }
 
@@ -719,6 +758,10 @@ button.ghost {
   }
 
   .health-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .results-grid {
     grid-template-columns: 1fr;
   }
 

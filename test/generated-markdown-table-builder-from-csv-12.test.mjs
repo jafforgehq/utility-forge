@@ -3,12 +3,18 @@ import assert from "node:assert/strict";
 
 import { runTool } from "../site/tools/markdown-table-builder-from-csv-12/logic.js";
 
-test("generated tool returns output", () => {
-  const output = runTool("hello world", "normalize");
-  assert.equal(typeof output, "string");
-  assert.ok(output.length > 0);
+test("markdown table tool converts csv", () => {
+  const input = "name,role\nAva,PO\nEve,SE";
+  const output = runTool(input, "csv-comma");
+  assert.equal(output, "| name | role |\n| --- | --- |\n| Ava | PO |\n| Eve | SE |");
 });
 
-test("generated tool rejects empty input", () => {
-  assert.throws(() => runTool("   ", "normalize"), /empty|invalid/i);
+test("markdown table tool converts tsv", () => {
+  const input = "name\tteam\nNora\tQA";
+  const output = runTool(input, "tsv-tab");
+  assert.equal(output, "| name | team |\n| --- | --- |\n| Nora | QA |");
+});
+
+test("markdown table tool rejects insufficient rows", () => {
+  assert.throws(() => runTool("name,role", "csv-comma"), /header row and one data row/i);
 });

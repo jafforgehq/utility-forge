@@ -3,12 +3,18 @@ import assert from "node:assert/strict";
 
 import { runTool } from "../site/tools/http-status-code-lookup-assistant-6/logic.js";
 
-test("generated tool returns output", () => {
-  const output = runTool("hello world", "normalize");
-  assert.equal(typeof output, "string");
-  assert.ok(output.length > 0);
+test("http status tool looks up single code", () => {
+  const output = runTool("404", "lookup-single");
+  assert.match(output, /404 Not Found/);
+  assert.match(output, /Category: Client Error/);
 });
 
-test("generated tool rejects empty input", () => {
-  assert.throws(() => runTool("   ", "normalize"), /empty|invalid/i);
+test("http status tool looks up batch codes", () => {
+  const output = runTool("200 503", "lookup-batch");
+  assert.match(output, /200 OK/);
+  assert.match(output, /503 Service Unavailable/);
+});
+
+test("http status tool rejects invalid code", () => {
+  assert.throws(() => runTool("hello", "lookup-single"), /invalid/i);
 });

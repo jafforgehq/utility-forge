@@ -9,28 +9,28 @@
   {
     "slug": "convert-curl-command-fetch-snippet-gener-3",
     "title": "Convert curl command -> fetch snippet generator",
-    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. Curl parsing is planned next.",
+    "summary": "Convert common curl commands into JavaScript fetch snippets for quick API testing and docs.",
     "path": "./tools/convert-curl-command-fetch-snippet-gener-3/",
     "source_issue": 3
   },
   {
     "slug": "jwt-payload-decoder-and-expiry-checker-5",
     "title": "JWT payload decoder and expiry checker",
-    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. JWT decode flow is planned next.",
+    "summary": "Decode JWT payloads instantly and check expiry status for quick auth debugging.",
     "path": "./tools/jwt-payload-decoder-and-expiry-checker-5/",
     "source_issue": 5
   },
   {
     "slug": "http-status-code-lookup-assistant-6",
     "title": "HTTP status code lookup assistant",
-    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. HTTP lookup catalog is planned next.",
+    "summary": "Look up HTTP status meanings quickly, including single-code and batch lookup modes.",
     "path": "./tools/http-status-code-lookup-assistant-6/",
     "source_issue": 6
   },
   {
     "slug": "markdown-table-builder-from-csv-12",
     "title": "Markdown table builder from CSV",
-    "summary": "Prototype v1 for text cleanup: normalize whitespace and sort lines. CSV-to-table conversion is planned next.",
+    "summary": "Convert CSV or TSV rows into clean Markdown tables for docs and pull requests.",
     "path": "./tools/markdown-table-builder-from-csv-12/",
     "source_issue": 12
   }

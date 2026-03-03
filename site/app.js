@@ -30,6 +30,11 @@ const healthSeRunEl = document.querySelector("#healthSeRun");
 const healthQaRunEl = document.querySelector("#healthQaRun");
 const healthWatchdogRunEl = document.querySelector("#healthWatchdogRun");
 const healthNextToolDateEl = document.querySelector("#healthNextToolDate");
+const resultsSyncEl = document.querySelector("#resultsSync");
+const resultShippedEl = document.querySelector("#resultShipped");
+const resultQaPassRateEl = document.querySelector("#resultQaPassRate");
+const resultLeadTimeEl = document.querySelector("#resultLeadTime");
+const resultLastDeployEl = document.querySelector("#resultLastDeploy");
 let currentActivityItems = [];
 let activityClockTimer = null;
 let activityRefreshTimer = null;
@@ -309,6 +314,44 @@ function updateHealthSnapshot(payload) {
 
   if (healthSyncEl) {
     healthSyncEl.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
+  }
+}
+
+function formatLeadTime(hours) {
+  if (!Number.isFinite(hours) || hours <= 0) {
+    return "n/a";
+  }
+  if (hours < 1) {
+    return `${Math.round(hours * 60)}m`;
+  }
+  if (hours < 24) {
+    return `${hours.toFixed(1)}h`;
+  }
+  return `${(hours / 24).toFixed(1)}d`;
+}
+
+function linkedIssueNumberFromPrBody(bodyText) {
+  const match = String(bodyText || "").match(/#(\d+)/);
+  return match?.[1] ? Number(match[1]) : 0;
+}
+
+function updateResultsSnapshot(payload) {
+  if (
+    !resultShippedEl ||
+    !resultQaPassRateEl ||
+    !resultLeadTimeEl ||
+    !resultLastDeployEl
+  ) {
+    return;
+  }
+
+  resultShippedEl.textContent = String(payload.toolsShipped || 0);
+  resultQaPassRateEl.textContent = payload.qaPassRateText || "n/a";
+  resultLeadTimeEl.textContent = payload.leadTimeText || "n/a";
+  resultLastDeployEl.textContent = payload.lastDeployText || "n/a";
+
+  if (resultsSyncEl) {
+    resultsSyncEl.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
   }
 }
 
@@ -707,6 +750,21 @@ async function loadToolCatalog() {
     const pagesRuns = pagesRunsResp.ok ? (await pagesRunsResp.json()).workflow_runs || [] : [];
     const todayIso = new Date().toISOString().slice(0, 10);
 
+    const qaCompleted = qaRuns.filter(
+      (run) => run.status === "completed" && (run.conclusion === "success" || run.conclusion === "failure")
+    );
+    const qaPasses = qaCompleted.filter((run) => run.conclusion === "success").length;
+    const qaPassRateText = qaCompleted.length
+      ? `${Math.round((qaPasses / qaCompleted.length) * 100)}% (${qaPasses}/${qaCompleted.length})`
+      : "n/a";
+
+    const successfulDeployRuns = pagesRuns
+      .filter((run) => run.conclusion === "success")
+      .sort((a, b) => dateToMs(b.created_at) - dateToMs(a.created_at));
+    const lastDeployText = successfulDeployRuns.length
+      ? formatAbsoluteTime(successfulDeployRuns[0].created_at)
+      : "n/a";
+
     const liveTools = [
       {
         title: "JSON Formatter / Minifier / Key Sorter",
@@ -795,10 +853,51 @@ async function loadToolCatalog() {
       return a.launchIso.localeCompare(b.launchIso);
     });
 
+    const toolIssuesByNumber = new Map(
+      (Array.isArray(allToolIssues) ? allToolIssues : [])
+        .filter((issue) => !issue.pull_request)
+        .map((issue) => [Number(issue.number), issue])
+    );
+    const mergedPrs = (Array.isArray(pulls) ? pulls : [])
+      .filter((pr) => Boolean(pr.merged_at))
+      .sort((a, b) => dateToMs(b.merged_at) - dateToMs(a.merged_at))
+      .slice(0, 12);
+    const deployRunsAsc = successfulDeployRuns
+      .slice()
+      .sort((a, b) => dateToMs(a.created_at) - dateToMs(b.created_at));
+
+    const leadTimes = [];
+    for (const pr of mergedPrs) {
+      const issueNumber = linkedIssueNumberFromPrBody(pr.body);
+      const sourceIssue = toolIssuesByNumber.get(issueNumber);
+      if (!sourceIssue) {
+        continue;
+      }
+      const startMs = dateToMs(sourceIssue.created_at);
+      const mergedMs = dateToMs(pr.merged_at);
+      if (!startMs || !mergedMs || mergedMs < startMs) {
+        continue;
+      }
+
+      const deployAfterMerge = deployRunsAsc.find((run) => dateToMs(run.created_at) >= mergedMs);
+      const endMs = deployAfterMerge ? dateToMs(deployAfterMerge.created_at) : mergedMs;
+      leadTimes.push((endMs - startMs) / 3600000);
+    }
+    const avgLeadHours = leadTimes.length
+      ? leadTimes.reduce((sum, item) => sum + item, 0) / leadTimes.length
+      : NaN;
+    const leadTimeText = formatLeadTime(avgLeadHours);
+
     catalogStatsEl.textContent = `${liveTools.length} live tools | ${upcomingTools.length} planned tools`;
     renderTileList(liveToolTilesEl, liveTools, "No live tools found.");
     renderTileList(plannedToolTilesEl, upcomingTools, "No planned tools found.");
     updatePipelineStats(liveTools, upcomingTools);
+    updateResultsSnapshot({
+      toolsShipped: liveTools.length,
+      qaPassRateText,
+      leadTimeText,
+      lastDeployText
+    });
     updateHealthSnapshot({
       poRun: poRuns[0] || null,
       seRun: seRuns[0] || null,
@@ -830,6 +929,12 @@ async function loadToolCatalog() {
     renderTileList(liveToolTilesEl, [], "Could not load live tools.");
     renderTileList(plannedToolTilesEl, [], "Could not load planned tools.");
     updatePipelineStats([], []);
+    updateResultsSnapshot({
+      toolsShipped: 0,
+      qaPassRateText: "n/a",
+      leadTimeText: "n/a",
+      lastDeployText: "n/a"
+    });
     updateHealthSnapshot({
       poRun: null,
       seRun: null,
@@ -843,6 +948,9 @@ async function loadToolCatalog() {
     }
     if (healthSyncEl) {
       healthSyncEl.textContent = "Health sync unavailable";
+    }
+    if (resultsSyncEl) {
+      resultsSyncEl.textContent = "Results sync unavailable";
     }
   } finally {
     isCatalogLoading = false;

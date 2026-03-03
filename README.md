@@ -1,9 +1,16 @@
 # Utility Forge
 
+[![CI](https://github.com/jafforgehq/utility-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/jafforgehq/utility-forge/actions/workflows/ci.yml)
+[![Deploy GitHub Pages](https://github.com/jafforgehq/utility-forge/actions/workflows/pages.yml/badge.svg)](https://github.com/jafforgehq/utility-forge/actions/workflows/pages.yml)
+[![Daily Product Owner Idea](https://github.com/jafforgehq/utility-forge/actions/workflows/daily-product-owner.yml/badge.svg)](https://github.com/jafforgehq/utility-forge/actions/workflows/daily-product-owner.yml)
+[![QA Review Automation](https://github.com/jafforgehq/utility-forge/actions/workflows/qa-review.yml/badge.svg)](https://github.com/jafforgehq/utility-forge/actions/workflows/qa-review.yml)
+
 Utility Forge is a self-evolving developer utilities website.
 
 Version 1 starts with one production-ready tool:
 - `JSON Formatter / Minifier / Key Sorter`
+
+> Disclaimer: Utility Forge is an autonomous alpha showcase. Pipelines are production-like, but tool depth and coverage are still expanding.
 
 The long-term model is a daily tool release managed by 3 roles:
 1. `Product Owner`: creates one new tool idea every day.
@@ -15,6 +22,14 @@ The long-term model is a daily tool release managed by 3 roles:
 This repo is configured for automatic deployment to GitHub Pages from `main` using `.github/workflows/pages.yml`.
 - Public URL: `https://jafforgehq.github.io/utility-forge/`
 - Agile Team Control Room: `https://jafforgehq.github.io/utility-forge/team.html`
+
+## Results Snapshot
+
+- Live results are published on the homepage in **Results Snapshot**:
+  - Tools shipped
+  - QA pass rate (recent completed runs)
+  - Average lead time (idea -> deploy, recent merged items)
+  - Last successful deploy timestamp
 
 ## Local Development
 
@@ -95,7 +110,7 @@ This keeps idea generation consistent while still producing one new concept dail
 ## Generated Tools
 
 - [Base64 / URL-safe Converter](site/tools/base64-url-safe-converter-1/) - Convert UTF-8 text between Base64 and URL-safe Base64 formats.
-- [JWT payload decoder and expiry checker](site/tools/jwt-payload-decoder-and-expiry-checker-5/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. JWT decode flow is planned next.
-- [Convert curl command -> fetch snippet generator](site/tools/convert-curl-command-fetch-snippet-gener-3/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. Curl parsing is planned next.
-- [HTTP status code lookup assistant](site/tools/http-status-code-lookup-assistant-6/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. HTTP lookup catalog is planned next.
-- [Markdown table builder from CSV](site/tools/markdown-table-builder-from-csv-12/) - Prototype v1 for text cleanup: normalize whitespace and sort lines. CSV-to-table conversion is planned next.
+- [JWT payload decoder and expiry checker](site/tools/jwt-payload-decoder-and-expiry-checker-5/) - Decode JWT payloads instantly and check expiry status for quick auth debugging.
+- [Convert curl command -> fetch snippet generator](site/tools/convert-curl-command-fetch-snippet-gener-3/) - Convert common curl commands into JavaScript fetch snippets for quick API testing and docs.
+- [HTTP status code lookup assistant](site/tools/http-status-code-lookup-assistant-6/) - Look up HTTP status meanings quickly, including single-code and batch lookup modes.
+- [Markdown table builder from CSV](site/tools/markdown-table-builder-from-csv-12/) - Convert CSV or TSV rows into clean Markdown tables for docs and pull requests.
