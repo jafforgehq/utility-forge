@@ -40,5 +40,12 @@
     "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
     "path": "./tools/sql-formatter-and-pretty-printer-15/",
     "source_issue": 15
+  },
+  {
+    "slug": "cron-expression-explainer-18",
+    "title": "Cron expression explainer",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/cron-expression-explainer-18/",
+    "source_issue": 18
   }
 ]

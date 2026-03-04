@@ -23,3 +23,13 @@ Maintained by Ava PO -> Eve SE handoff automation.
 - Why now: Developers need this SQL formatter and pretty printer workflow repeatedly while shipping quickly.
 - Problem: Developers waste time searching for tiny one-off conversions and lookups.
 - Users: Frontend and backend engineers shipping quickly.
+
+## 2026-03-04 - Cron expression explainer (issue #18)
+
+- Tool: [Cron expression explainer](../site/tools/cron-expression-explainer-18/)
+- Value: 4/5
+- Effort: S
+- Confidence: 0.78
+- Why now: Developers need this Cron expression explainer workflow repeatedly while shipping quickly.
+- Problem: Developers waste time searching for tiny one-off conversions and lookups.
+- Users: Frontend and backend engineers shipping quickly.
