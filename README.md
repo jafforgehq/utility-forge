@@ -64,6 +64,11 @@ Required repo settings:
 4. Add optional variable or secret: `TOOL_LAUNCH_OFFSET_DAYS` (default: `1`)
 5. If `OPENAI_MODEL` is not set, workflow defaults to `gpt-4o-mini` (low-cost baseline model)
 
+Troubleshooting:
+- If Product Owner falls back unexpectedly, open the workflow run logs and search for `PO idea generation mode:` and `OpenAI generation failed:`.
+- If your configured `OPENAI_MODEL` returns a model-related `400`, the workflow auto-retries with `gpt-4o-mini`.
+- If you see `OPENAI_DAILY_CALL_LIMIT reached`, increase repo variable `OPENAI_DAILY_CALL_LIMIT`.
+
 ## Software Engineer Automation
 
 Workflow: `.github/workflows/software-engineer.yml`

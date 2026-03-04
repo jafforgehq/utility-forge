@@ -229,7 +229,8 @@ jobs:
               Number.isFinite(aiCallLimit) &&
               aiCallLimit > 0 &&
               aiCallsToday < aiCallLimit;
-            const openAiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
+            const defaultOpenAiModel = "gpt-4o-mini";
+            const openAiModel = process.env.OPENAI_MODEL || defaultOpenAiModel;
 
             core.info(
               [
@@ -242,11 +243,11 @@ jobs:
               ].join(" ")
             );
 
-            const generateIdea = async (extraInstruction = "") => {
+            const requestIdeaFromModel = async (modelName, extraInstruction = "") => {
               const candidateHint = extraInstruction
                 ? extraInstruction.split("\n")[0].slice(0, 120)
                 : "default-candidate";
-              core.info(`OpenAI request started (model=${openAiModel}, hint=${candidateHint})`);
+              core.info(`OpenAI request started (model=${modelName}, hint=${candidateHint})`);
 
               const response = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
@@ -255,7 +256,7 @@ jobs:
                   Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
                 },
                 body: JSON.stringify({
-                  model: openAiModel,
+                  model: modelName,
                   temperature: 0.6,
                   max_tokens: 700,
                   messages: [
@@ -296,9 +297,16 @@ jobs:
                   response.headers.get("request-id") ||
                   "n/a";
                 const errorBody = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 700);
-                throw new Error(
-                  `OpenAI call failed (${response.status}) request_id=${requestId} body=${errorBody || "empty"}`
+                const err = new Error(
+                  `OpenAI call failed (${response.status}) model=${modelName} request_id=${requestId} body=${errorBody || "empty"}`
                 );
+                err.status = response.status;
+                err.modelError =
+                  response.status === 400 &&
+                  /(model|unsupported|not available|not found|does not exist|access to this model)/i.test(
+                    errorBody
+                  );
+                throw err;
               }
 
               const payload = await response.json();
@@ -311,8 +319,22 @@ jobs:
                 throw new Error(`OpenAI response was empty (request_id=${requestId})`);
               }
 
-              core.info(`OpenAI request succeeded (model=${openAiModel}, chars=${content.length})`);
+              core.info(`OpenAI request succeeded (model=${modelName}, chars=${content.length})`);
               return content;
+            };
+
+            const generateIdea = async (extraInstruction = "") => {
+              try {
+                return await requestIdeaFromModel(openAiModel, extraInstruction);
+              } catch (error) {
+                if (error?.modelError && openAiModel !== defaultOpenAiModel) {
+                  core.warning(
+                    `Configured OPENAI_MODEL (${openAiModel}) failed with model-related 400. Retrying with ${defaultOpenAiModel}.`
+                  );
+                  return requestIdeaFromModel(defaultOpenAiModel, extraInstruction);
+                }
+                throw error;
+              }
             };
 
             if (canUseAI) {
