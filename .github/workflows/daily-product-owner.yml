@@ -229,8 +229,25 @@ jobs:
               Number.isFinite(aiCallLimit) &&
               aiCallLimit > 0 &&
               aiCallsToday < aiCallLimit;
+            const openAiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+            core.info(
+              [
+                "PO idea generation mode:",
+                `api_key=${process.env.OPENAI_API_KEY ? "present" : "missing"}`,
+                `model=${openAiModel}`,
+                `ai_calls_today=${aiCallsToday}`,
+                `daily_call_limit=${aiCallLimit}`,
+                `can_use_ai=${canUseAI}`
+              ].join(" ")
+            );
 
             const generateIdea = async (extraInstruction = "") => {
+              const candidateHint = extraInstruction
+                ? extraInstruction.split("\n")[0].slice(0, 120)
+                : "default-candidate";
+              core.info(`OpenAI request started (model=${openAiModel}, hint=${candidateHint})`);
+
               const response = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -238,7 +255,7 @@ jobs:
                   Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
                 },
                 body: JSON.stringify({
-                  model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+                  model: openAiModel,
                   temperature: 0.6,
                   max_tokens: 700,
                   messages: [
@@ -274,11 +291,27 @@ jobs:
               });
 
               if (!response.ok) {
-                throw new Error(`OpenAI call failed (${response.status})`);
+                const requestId =
+                  response.headers.get("x-request-id") ||
+                  response.headers.get("request-id") ||
+                  "n/a";
+                const errorBody = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 700);
+                throw new Error(
+                  `OpenAI call failed (${response.status}) request_id=${requestId} body=${errorBody || "empty"}`
+                );
               }
 
               const payload = await response.json();
               const content = payload.choices?.[0]?.message?.content?.trim() || "";
+              if (!content) {
+                const requestId =
+                  response.headers.get("x-request-id") ||
+                  response.headers.get("request-id") ||
+                  "n/a";
+                throw new Error(`OpenAI response was empty (request_id=${requestId})`);
+              }
+
+              core.info(`OpenAI request succeeded (model=${openAiModel}, chars=${content.length})`);
               return content;
             };
 
@@ -331,10 +364,15 @@ jobs:
                 ].join("\n");
               } catch (error) {
                 core.warning(`OpenAI generation failed: ${error.message}`);
+                core.info("Falling back to deterministic seed after OpenAI failure.");
               }
             } else if (process.env.OPENAI_API_KEY && aiCallsToday >= aiCallLimit) {
               core.warning(
                 `OPENAI_DAILY_CALL_LIMIT reached (${aiCallsToday}/${aiCallLimit}). Using fallback idea.`
+              );
+            } else if (process.env.OPENAI_API_KEY && (!Number.isFinite(aiCallLimit) || aiCallLimit <= 0)) {
+              core.warning(
+                `OPENAI_DAILY_CALL_LIMIT is invalid (${process.env.OPENAI_DAILY_CALL_LIMIT}). Using fallback idea.`
               );
             } else {
               core.warning("OPENAI_API_KEY is not set. Using deterministic fallback idea.");
