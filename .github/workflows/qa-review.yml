@@ -83,12 +83,46 @@ jobs:
             const testOutcome = process.env.TEST_OUTCOME || "failure";
             const retryCount = Number(process.env.RETRY_COUNT || 0);
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+            const transientStatusCodes = new Set([408, 429, 500, 502, 503, 504, 522, 524]);
+            const transientMessage = /(unicorn|timeout|timed out|econnreset|socket hang up|eai_again|enotfound)/i;
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const withRetry = async (operation, fn, maxRetries = 4) => {
+              for (let attempt = 0; ; attempt += 1) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  const status = Number(error?.status || error?.response?.status || 0);
+                  const message = String(error?.message || "");
+                  const isTransient = transientStatusCodes.has(status) || transientMessage.test(message);
+                  if (!isTransient || attempt >= maxRetries) {
+                    throw error;
+                  }
+                  const delayMs = 1500 * 2 ** attempt + Math.floor(Math.random() * 500);
+                  core.warning(
+                    `${operation} failed (${status || "no-status"}: ${message}). Retrying in ${delayMs}ms.`
+                  );
+                  await sleep(delayMs);
+                }
+              }
+            };
+            const bestEffort = async (operation, fn) => {
+              try {
+                return await withRetry(operation, fn);
+              } catch (error) {
+                core.warning(`${operation} failed after retries: ${error.message}`);
+                return null;
+              }
+            };
             const ensureLabel = async (name, color, description) => {
               try {
-                await github.rest.issues.getLabel({ owner, repo, name });
+                await withRetry(`issues.getLabel(${name})`, () =>
+                  github.rest.issues.getLabel({ owner, repo, name })
+                );
               } catch (error) {
                 if (error.status !== 404) throw error;
-                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+                await withRetry(`issues.createLabel(${name})`, () =>
+                  github.rest.issues.createLabel({ owner, repo, name, color, description })
+                );
               }
             };
 
@@ -97,7 +131,9 @@ jobs:
             await ensureLabel("status:done", "386641", "Completed and merged");
 
             if (!issueNumber) {
-              const pr = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+              const pr = await withRetry("pulls.get(prNumber)", () =>
+                github.rest.pulls.get({ owner, repo, pull_number: prNumber })
+              );
               const body = pr.data.body || "";
               const match = body.match(/#(\d+)/);
               if (match) {
@@ -107,11 +143,13 @@ jobs:
 
             let acceptanceCriteria = [];
             if (issueNumber) {
-              const issue = await github.rest.issues.get({
-                owner,
-                repo,
-                issue_number: issueNumber
-              });
+              const issue = await withRetry("issues.get(issueNumber)", () =>
+                github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber
+                })
+              );
               const body = issue.data.body || "";
               const section = body.match(/## Acceptance Criteria[\s\S]*?(?:\n## |\n---|$)/i);
               if (section?.[0]) {
@@ -122,12 +160,14 @@ jobs:
               }
             }
 
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner,
-              repo,
-              pull_number: prNumber,
-              per_page: 100
-            });
+            const files = await withRetry("pulls.listFiles", () =>
+              github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: prNumber,
+                per_page: 100
+              })
+            );
 
             const changedFiles = new Set(files.map((file) => file.filename.toLowerCase()));
             const testPatchText = files
@@ -248,11 +288,13 @@ jobs:
 
             if (qaPass) {
               try {
-                const pr = await github.rest.pulls.get({
-                  owner,
-                  repo,
-                  pull_number: prNumber
-                });
+                const pr = await withRetry("pulls.get(before-merge)", () =>
+                  github.rest.pulls.get({
+                    owner,
+                    repo,
+                    pull_number: prNumber
+                  })
+                );
 
                 if (pr.data.merged) {
                   mergeStatus = "already-merged";
@@ -262,13 +304,15 @@ jobs:
                   mergeStatus = "failed";
                   mergeDetail = `PR is not open (state: ${pr.data.state}).`;
                 } else {
-                  await github.rest.pulls.merge({
-                    owner,
-                    repo,
-                    pull_number: prNumber,
-                    merge_method: "squash",
-                    commit_title: `[QA] Auto-merge PR #${prNumber}`
-                  });
+                  await withRetry("pulls.merge", () =>
+                    github.rest.pulls.merge({
+                      owner,
+                      repo,
+                      pull_number: prNumber,
+                      merge_method: "squash",
+                      commit_title: `[QA] Auto-merge PR #${prNumber}`
+                    })
+                  );
                   mergeStatus = "merged";
                   mergeDetail = "PR merged automatically after QA pass.";
                 }
@@ -281,12 +325,14 @@ jobs:
 
             if (qaPass) {
               try {
-                await github.rest.actions.createWorkflowDispatch({
-                  owner,
-                  repo,
-                  workflow_id: "pages.yml",
-                  ref: "main"
-                });
+                await withRetry("actions.createWorkflowDispatch(pages)", () =>
+                  github.rest.actions.createWorkflowDispatch({
+                    owner,
+                    repo,
+                    workflow_id: "pages.yml",
+                    ref: "main"
+                  })
+                );
                 deployStatus = "dispatched";
                 deployDetail = "GitHub Pages deployment workflow was dispatched.";
               } catch (error) {
@@ -326,41 +372,43 @@ jobs:
                   "- Follow-up: tighten handoff checks before QA starts to reduce rerun cycles."
                 ];
 
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: prNumber,
-              body: [
-                noraAvatar ? `<img src="${noraAvatar}" alt="${noraName}" width="30" height="30" />` : "",
-                "## QA Review Report",
-                `Reviewer: **${noraName}**`,
-                `Decision: **${qaDecision}**`,
-                `Automated tests: **${testOutcome}**`,
-                "",
-                "### Structured Assessment",
-                `- Severity: **${severity}**`,
-                `- Risk: **${risk}**`,
-                `- Recommendation: ${recommendation}`,
-                "",
-                "### Acceptance criteria status",
-                acceptanceSummary,
-                "",
-                "### Auto-merge status",
-                `- ${mergeStatus.toUpperCase()}: ${mergeDetail}`,
-                "",
-                "### Deploy status",
-                `- ${deployStatus.toUpperCase()}: ${deployDetail}`,
-                "",
-                "### Retro-Ready Notes",
-                ...retroNotes,
-                "",
-                qaPass
-                  ? `${noraName} marked this change complete.`
-                  : `${noraName} blocked completion because tests/criteria/merge/deploy checks failed.`,
-                "",
-                `_${noraName} (Quality Assurance)_`
-              ].join("\n")
-            });
+            await bestEffort("issues.createComment(qa-report)", () =>
+              github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: [
+                  noraAvatar ? `<img src="${noraAvatar}" alt="${noraName}" width="30" height="30" />` : "",
+                  "## QA Review Report",
+                  `Reviewer: **${noraName}**`,
+                  `Decision: **${qaDecision}**`,
+                  `Automated tests: **${testOutcome}**`,
+                  "",
+                  "### Structured Assessment",
+                  `- Severity: **${severity}**`,
+                  `- Risk: **${risk}**`,
+                  `- Recommendation: ${recommendation}`,
+                  "",
+                  "### Acceptance criteria status",
+                  acceptanceSummary,
+                  "",
+                  "### Auto-merge status",
+                  `- ${mergeStatus.toUpperCase()}: ${mergeDetail}`,
+                  "",
+                  "### Deploy status",
+                  `- ${deployStatus.toUpperCase()}: ${deployDetail}`,
+                  "",
+                  "### Retro-Ready Notes",
+                  ...retroNotes,
+                  "",
+                  qaPass
+                    ? `${noraName} marked this change complete.`
+                    : `${noraName} blocked completion because tests/criteria/merge/deploy checks failed.`,
+                  "",
+                  `_${noraName} (Quality Assurance)_`
+                ].join("\n")
+              })
+            );
 
             const retryEligible =
               !qaPass &&
@@ -370,33 +418,39 @@ jobs:
               (mergeStatus === "failed" || deployStatus === "failed");
 
             if (retryEligible && retryCount < 1) {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: prNumber,
-                body: [
-                  "### Nora QA Auto-Retry",
-                  "Tests and criteria passed, but merge/deploy failed due pipeline state.",
-                  "QA will retry once automatically after the normal delay."
-                ].join("\n")
-              });
-              await github.rest.repos.createDispatchEvent({
-                owner,
-                repo,
-                event_type: "se_pr_ready",
-                client_payload: {
-                  pr_number: prNumber,
-                  issue_number: issueNumber,
-                  retry_count: retryCount + 1
-                }
-              });
+              await bestEffort("issues.createComment(qa-retry)", () =>
+                github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  body: [
+                    "### Nora QA Auto-Retry",
+                    "Tests and criteria passed, but merge/deploy failed due pipeline state.",
+                    "QA will retry once automatically after the normal delay."
+                  ].join("\n")
+                })
+              );
+              await bestEffort("repos.createDispatchEvent(se_pr_ready)", () =>
+                github.rest.repos.createDispatchEvent({
+                  owner,
+                  repo,
+                  event_type: "se_pr_ready",
+                  client_payload: {
+                    pr_number: prNumber,
+                    issue_number: issueNumber,
+                    retry_count: retryCount + 1
+                  }
+                })
+              );
             }
 
-            const prIssue = await github.rest.issues.get({
-              owner,
-              repo,
-              issue_number: prNumber
-            });
+            const prIssue = await withRetry("issues.get(prIssue)", () =>
+              github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: prNumber
+              })
+            );
             const prLabelNames = prIssue.data.labels.map((label) =>
               typeof label === "string" ? label : label.name
             );
@@ -409,12 +463,14 @@ jobs:
                   "role:qa"
                 ])
               );
-              await github.rest.issues.setLabels({
-                owner,
-                repo,
-                issue_number: prNumber,
-                labels: updatedPrLabels
-              });
+              await bestEffort("issues.setLabels(pr-done)", () =>
+                github.rest.issues.setLabels({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  labels: updatedPrLabels
+                })
+              );
             } else {
               const updatedPrLabels = Array.from(
                 new Set([
@@ -423,20 +479,24 @@ jobs:
                   "role:qa"
                 ])
               );
-              await github.rest.issues.setLabels({
-                owner,
-                repo,
-                issue_number: prNumber,
-                labels: updatedPrLabels
-              });
+              await bestEffort("issues.setLabels(pr-qa-review)", () =>
+                github.rest.issues.setLabels({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  labels: updatedPrLabels
+                })
+              );
             }
 
             if (issueNumber && qaPass) {
-              const issue = await github.rest.issues.get({
-                owner,
-                repo,
-                issue_number: issueNumber
-              });
+              const issue = await withRetry("issues.get(linked-issue)", () =>
+                github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber
+                })
+              );
               const names = issue.data.labels.map((label) =>
                 typeof label === "string" ? label : label.name
               );
@@ -449,20 +509,24 @@ jobs:
                   "role:qa"
                 ])
               );
-              await github.rest.issues.setLabels({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                labels: updated
-              });
+              await bestEffort("issues.setLabels(linked-issue-done)", () =>
+                github.rest.issues.setLabels({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  labels: updated
+                })
+              );
 
-              await github.rest.issues.update({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                state: "closed",
-                state_reason: "completed"
-              });
+              await bestEffort("issues.update(close-linked-issue)", () =>
+                github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  state: "closed",
+                  state_reason: "completed"
+                })
+              );
             }
 
             if (!qaPass) {
