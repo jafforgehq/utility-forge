@@ -47,5 +47,12 @@
     "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
     "path": "./tools/cron-expression-explainer-18/",
     "source_issue": 18
+  },
+  {
+    "slug": "uuid-diagnostic-suite-24",
+    "title": "**UUID Diagnostic Suite**",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/uuid-diagnostic-suite-24/",
+    "source_issue": 24
   }
 ]

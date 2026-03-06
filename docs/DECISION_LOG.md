@@ -33,3 +33,13 @@ Maintained by Ava PO -> Eve SE handoff automation.
 - Why now: Developers need this Cron expression explainer workflow repeatedly while shipping quickly.
 - Problem: Developers waste time searching for tiny one-off conversions and lookups.
 - Users: Frontend and backend engineers shipping quickly.
+
+## 2026-03-06 - **UUID Diagnostic Suite** (issue #24)
+
+- Tool: [**UUID Diagnostic Suite**](../site/tools/uuid-diagnostic-suite-24/)
+- Value: 4/5
+- Effort: S
+- Confidence: 0.78
+- Why now: Requested frequently in day-to-day engineering workflows.
+- Problem: In the DevOps and CI/CD pipeline, ensuring that unique identifiers (UUIDs) are correctly generated, formatted, and validated is crucial for maintaining data integrity across distributed systems. However, developers often face issues with UUID format discrepancies, validation errors, and debugging UUID-related problems, leading to potential system failures or data corruption.
+- Users: - DevOps Engineers
