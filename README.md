@@ -89,3 +89,7 @@ Open `http://localhost:8080`.
 
 - External API/provider failures can still force deterministic fallback.
 - Tool quality and scope vary by day and are still improving.
+
+## Generated Tools
+
+- [**UUID API Workflow Assistant**](site/tools/uuid-api-workflow-assistant-31/) - Normalize and sort lines of text for quick developer cleanup tasks.
