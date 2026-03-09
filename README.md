@@ -89,3 +89,7 @@ Open `http://localhost:8080`.
 
 - External API/provider failures can still force deterministic fallback.
 - Tool quality and scope vary by day and are still improving.
+
+## Generated Tools
+
+- [UUID Security Checker](site/tools/uuid-security-checker-33/) - Normalize and sort lines of text for quick developer cleanup tasks.
