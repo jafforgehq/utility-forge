@@ -804,7 +804,7 @@ async function loadToolCatalog() {
         : [])
     ];
 
-    const upcomingToolsFromIssues = Array.isArray(allToolIssues)
+    const upcomingToolsFromIssues = !AUTOMATION_ARCHIVED && Array.isArray(allToolIssues)
       ? allToolIssues
           .filter((item) => item.state === "open")
           .filter((item) => !item.pull_request)
