@@ -1,8 +1,6 @@
 name: Daily Product Owner Idea
 
 on:
-  schedule:
-    - cron: "0 9 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,6 +22,8 @@ jobs:
       - name: Generate idea and open issue
         uses: actions/github-script@v7
         env:
+          IDEA_GENERATION_PAUSED: "true"
+          IDEA_GENERATION_PAUSED_ON: "2026-03-10"
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL || 'gpt-4o-mini' }}
           OPENAI_DAILY_CALL_LIMIT: ${{ vars.OPENAI_DAILY_CALL_LIMIT || secrets.OPENAI_DAILY_CALL_LIMIT || '1' }}
@@ -39,11 +39,18 @@ jobs:
             const avaAvatar = `${avatarBase}/ava-ai.svg`;
             const now = new Date();
             const dateTag = now.toISOString().slice(0, 10);
+            const ideasPaused = String(process.env.IDEA_GENERATION_PAUSED || "").toLowerCase() === "true";
+            const pausedOn = process.env.IDEA_GENERATION_PAUSED_ON || "2026-03-10";
             const aiCallLimit = Number(process.env.OPENAI_DAILY_CALL_LIMIT || "1");
             const launchOffsetDays = Math.max(1, Number(process.env.TOOL_LAUNCH_OFFSET_DAYS || "1"));
             const launchDateObj = new Date(now);
             launchDateObj.setUTCDate(launchDateObj.getUTCDate() + launchOffsetDays);
             const launchDate = launchDateObj.toISOString().slice(0, 10);
+
+            if (ideasPaused) {
+              core.notice(`Idea generation is paused as of ${pausedOn}. No new Product Owner issue will be created.`);
+              return;
+            }
 
             async function ensureLabel(name, color, description) {
               try {

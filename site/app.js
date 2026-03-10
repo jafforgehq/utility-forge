@@ -40,6 +40,8 @@ let activityClockTimer = null;
 let activityRefreshTimer = null;
 let isCatalogLoading = false;
 
+const AUTOMATION_ARCHIVED = true;
+const AUTOMATION_ARCHIVE_DATE = "2026-03-10";
 const MIN_UPCOMING_TILES = 3;
 const FALLBACK_PLANNED_TOOLS = [
   "HTTP Header Diff Checker",
@@ -303,7 +305,10 @@ function updateHealthSnapshot(payload) {
   setHealthValue(healthWatchdogRunEl, workflowRunSummary(payload.watchdogRun));
 
   const nextIso = payload.nextLaunchIso || "";
-  if (nextIso) {
+  if (AUTOMATION_ARCHIVED) {
+    healthNextToolDateEl.textContent = `Paused on ${formatDate(AUTOMATION_ARCHIVE_DATE)}`;
+    healthNextToolDateEl.dataset.tone = "warn";
+  } else if (nextIso) {
     const countdown = formatCountdown(nextIso);
     healthNextToolDateEl.textContent = `${formatDate(nextIso)} (${countdown})`;
     healthNextToolDateEl.dataset.tone = "info";
@@ -621,13 +626,17 @@ function updatePipelineStats(liveTools, upcomingTools) {
   }
 
   if (nextLaunchMetricEl) {
-    nextLaunchMetricEl.textContent = nextLaunch
-      ? `Next launch: ${formatDate(nextLaunch.launchIso)} (${formatCountdown(nextLaunch.launchIso)})`
-      : "Next launch: TBD";
+    nextLaunchMetricEl.textContent = AUTOMATION_ARCHIVED
+      ? `Roadmap paused on ${formatDate(AUTOMATION_ARCHIVE_DATE)}`
+      : nextLaunch
+        ? `Next launch: ${formatDate(nextLaunch.launchIso)} (${formatCountdown(nextLaunch.launchIso)})`
+        : "Next launch: TBD";
   }
 
   if (poMetricEl) {
-    poMetricEl.textContent = "Rate: 1 idea/day";
+    poMetricEl.textContent = AUTOMATION_ARCHIVED
+      ? `PO paused ${formatDate(AUTOMATION_ARCHIVE_DATE)}`
+      : "Rate: 1 idea/day";
   }
 
   if (seMetricEl) {
@@ -645,6 +654,14 @@ function updatePipelineStats(liveTools, upcomingTools) {
 
 function startPipelineAnimation() {
   if (!pipelineNodeEls.length) {
+    return;
+  }
+
+  if (AUTOMATION_ARCHIVED) {
+    pipelineNodeEls.forEach((node) => node.classList.remove("is-active"));
+    if (pipelinePulseTextEl) {
+      pipelinePulseTextEl.textContent = `Automation archived on ${formatDate(AUTOMATION_ARCHIVE_DATE)}.`;
+    }
     return;
   }
 
@@ -824,27 +841,29 @@ async function loadToolCatalog() {
     const liveNameSet = new Set(liveTools.map((tool) => tool.title.toLowerCase()));
     const upcomingTools = [...upcomingToolsFromIssues];
 
-    let fallbackIndex = 0;
-    while (upcomingTools.length < MIN_UPCOMING_TILES && fallbackIndex < 20) {
-      const candidateName = FALLBACK_PLANNED_TOOLS[fallbackIndex % FALLBACK_PLANNED_TOOLS.length];
-      const lower = candidateName.toLowerCase();
-      fallbackIndex += 1;
+    if (!AUTOMATION_ARCHIVED) {
+      let fallbackIndex = 0;
+      while (upcomingTools.length < MIN_UPCOMING_TILES && fallbackIndex < 20) {
+        const candidateName = FALLBACK_PLANNED_TOOLS[fallbackIndex % FALLBACK_PLANNED_TOOLS.length];
+        const lower = candidateName.toLowerCase();
+        fallbackIndex += 1;
 
-      if (liveNameSet.has(lower) || upcomingTools.some((tool) => tool.title.toLowerCase() === lower)) {
-        continue;
+        if (liveNameSet.has(lower) || upcomingTools.some((tool) => tool.title.toLowerCase() === lower)) {
+          continue;
+        }
+
+        const launchIso = addDaysIso(todayIso, upcomingTools.length + 1);
+        upcomingTools.push({
+          title: candidateName,
+          summary: "Planned by the daily roadmap.",
+          url: "",
+          status: "Planned",
+          kind: "upcoming",
+          date: `Launch ${formatDate(launchIso)}`,
+          countdown: formatCountdown(launchIso),
+          launchIso
+        });
       }
-
-      const launchIso = addDaysIso(todayIso, upcomingTools.length + 1);
-      upcomingTools.push({
-        title: candidateName,
-        summary: "Planned by the daily roadmap.",
-        url: "",
-        status: "Planned",
-        kind: "upcoming",
-        date: `Launch ${formatDate(launchIso)}`,
-        countdown: formatCountdown(launchIso),
-        launchIso
-      });
     }
 
     upcomingTools.sort((a, b) => {
@@ -888,9 +907,17 @@ async function loadToolCatalog() {
       : NaN;
     const leadTimeText = formatLeadTime(avgLeadHours);
 
-    catalogStatsEl.textContent = `${liveTools.length} live tools | ${upcomingTools.length} planned tools`;
+    catalogStatsEl.textContent = AUTOMATION_ARCHIVED
+      ? `${liveTools.length} live tools | roadmap paused ${formatDate(AUTOMATION_ARCHIVE_DATE)}`
+      : `${liveTools.length} live tools | ${upcomingTools.length} planned tools`;
     renderTileList(liveToolTilesEl, liveTools, "No live tools found.");
-    renderTileList(plannedToolTilesEl, upcomingTools, "No planned tools found.");
+    renderTileList(
+      plannedToolTilesEl,
+      upcomingTools,
+      AUTOMATION_ARCHIVED
+        ? `Idea generation stopped on ${formatDate(AUTOMATION_ARCHIVE_DATE)}. Roadmap is paused.`
+        : "No planned tools found."
+    );
     updatePipelineStats(liveTools, upcomingTools);
     updateResultsSnapshot({
       toolsShipped: liveTools.length,

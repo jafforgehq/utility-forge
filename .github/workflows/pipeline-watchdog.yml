@@ -1,8 +1,6 @@
 name: Pipeline Watchdog
 
 on:
-  schedule:
-    - cron: "20 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,12 +18,22 @@ jobs:
     steps:
       - name: Detect and unstick stalled queue items
         uses: actions/github-script@v7
+        env:
+          AUTOMATION_PAUSED: "true"
+          AUTOMATION_PAUSED_ON: "2026-03-10"
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const now = Date.now();
+            const automationPaused = String(process.env.AUTOMATION_PAUSED || "").toLowerCase() === "true";
+            const pausedOn = process.env.AUTOMATION_PAUSED_ON || "2026-03-10";
             const avatarBase = `https://raw.githubusercontent.com/${owner}/${repo}/main/site/assets/avatars`;
+
+            if (automationPaused) {
+              core.notice(`Pipeline watchdog is paused as of ${pausedOn}. No queue nudges will be sent.`);
+              return;
+            }
 
             const thresholds = {
               ready: 6,
