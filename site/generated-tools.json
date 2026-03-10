@@ -47,5 +47,12 @@
     "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
     "path": "./tools/cron-expression-explainer-18/",
     "source_issue": 18
+  },
+  {
+    "slug": "uuid-cli-toolkit-36",
+    "title": "**UUID CLI Toolkit**",
+    "summary": "Normalize and sort lines of text for quick developer cleanup tasks.",
+    "path": "./tools/uuid-cli-toolkit-36/",
+    "source_issue": 36
   }
 ]
