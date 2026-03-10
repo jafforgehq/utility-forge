@@ -1,0 +1,128 @@
+name: Archive Backlog
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/archive-backlog.yml"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close stale autonomous backlog
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const prNumbers = [22, 25, 29, 32, 34, 37];
+            const toolIssueNumbers = [21, 24, 28, 31, 33, 36];
+            const ritualIssueNumbers = [26, 35];
+
+            const prMessage =
+              "Archiving this automated PR. On March 10, 2026 the autonomous pipeline was paused, and this post-stable backlog item was not merged because the generated output did not meet the quality bar for the public site. `main` now preserves the last stable published state.";
+            const toolIssueMessage =
+              "Archiving this tool issue. On March 10, 2026 the autonomous pipeline was paused and this backlog item was intentionally not shipped. The repository and site now preserve the last stable public state instead of continuing the stalled UUID backlog.";
+            const ritualIssueMessage =
+              "Closing this ritual issue because scheduled automation was paused on March 10, 2026. It remains in history as part of the final autonomous run record.";
+
+            async function commentIfPossible(issueNumber, body) {
+              try {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body
+                });
+              } catch (error) {
+                core.warning(`Could not comment on #${issueNumber}: ${error.message}`);
+              }
+            }
+
+            for (const pullNumber of prNumbers) {
+              try {
+                const { data: pull } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: pullNumber
+                });
+
+                if (pull.state === "closed") {
+                  core.info(`PR #${pullNumber} already closed.`);
+                  continue;
+                }
+
+                await commentIfPossible(pullNumber, prMessage);
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: pullNumber,
+                  state: "closed"
+                });
+                core.info(`Closed PR #${pullNumber}.`);
+              } catch (error) {
+                core.warning(`Failed to archive PR #${pullNumber}: ${error.message}`);
+              }
+            }
+
+            for (const issueNumber of toolIssueNumbers) {
+              try {
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber
+                });
+
+                if (issue.state === "closed") {
+                  core.info(`Issue #${issueNumber} already closed.`);
+                  continue;
+                }
+
+                await commentIfPossible(issueNumber, toolIssueMessage);
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  state: "closed",
+                  state_reason: "not_planned"
+                });
+                core.info(`Closed issue #${issueNumber}.`);
+              } catch (error) {
+                core.warning(`Failed to archive issue #${issueNumber}: ${error.message}`);
+              }
+            }
+
+            for (const issueNumber of ritualIssueNumbers) {
+              try {
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber
+                });
+
+                if (issue.state === "closed") {
+                  core.info(`Issue #${issueNumber} already closed.`);
+                  continue;
+                }
+
+                await commentIfPossible(issueNumber, ritualIssueMessage);
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  state: "closed",
+                  state_reason: "not_planned"
+                });
+                core.info(`Closed issue #${issueNumber}.`);
+              } catch (error) {
+                core.warning(`Failed to archive issue #${issueNumber}: ${error.message}`);
+              }
+            }
